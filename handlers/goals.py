@@ -13,7 +13,7 @@ from keyboards import (
     get_goal_list_keyboard,
     get_goal_detail_buttons,
     get_goal_menu_keyboard,
-    get_goal_category_keyboard,
+    get_category_keyboard,
     get_abandon_confirm_buttons,
 )
 from locales import t
@@ -104,7 +104,7 @@ async def add_goal_deadline(message: Message, state: FSMContext, session) -> Non
     lang = getattr(user, "language", "en") if user else "en"
     await state.update_data(deadline=deadline)
     await state.set_state(AddGoalStates.category)
-    await message.answer(t(lang, "goal_category_prompt"), reply_markup=get_goal_category_keyboard(lang))
+    await message.answer(t(lang, "goal_category_prompt"), reply_markup=get_category_keyboard(lang))
 
 
 async def _save_goal_from_state(user: User, state: FSMContext, session) -> Goal:

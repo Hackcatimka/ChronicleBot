@@ -74,8 +74,8 @@ def _get_period_range(period_key: str) -> tuple[datetime, datetime]:
         raise ValueError("Unknown period key")
 
     return (
-        datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc),
-        datetime.combine(end_date, datetime.min.time(), tzinfo=timezone.utc),
+        datetime.combine(start_date, datetime.min.time()),
+        datetime.combine(end_date, datetime.min.time()),
     )
 
 
