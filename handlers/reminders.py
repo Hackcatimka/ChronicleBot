@@ -4,11 +4,12 @@ from aiogram import F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
 from db.models import Reminder, User
-from keyboards import get_main_menu_keyboard, get_tone_keyboard
+from keyboards import get_main_menu_keyboard, get_reminders_keyboard, get_settings_keyboard, get_tone_keyboard
+from locales import t
 from scheduler import add_reminder_job, remove_reminder_job
 
 router = Router()
@@ -16,46 +17,6 @@ router = Router()
 
 class ReminderStates(StatesGroup):
     waiting_for_time = State()
-
-
-def _format_reminder_label(reminder_type: str) -> str:
-    return {
-        "morning": "Morning",
-        "evening": "Evening",
-        "weekly": "Weekly digest",
-    }[reminder_type]
-
-
-def _build_settings_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🔔 Reminders", callback_data="settings:reminders"),
-         InlineKeyboardButton(text="🎭 Change tone", callback_data="settings:tone")],
-        [InlineKeyboardButton(text="← Back", callback_data="settings:back")],
-    ])
-
-
-def _build_reminders_keyboard(reminders: list[Reminder]) -> InlineKeyboardMarkup:
-    rows = []
-    active = {rem.type: rem for rem in reminders if rem.is_active}
-    for reminder_type in ["morning", "evening", "weekly"]:
-        reminder = active.get(reminder_type)
-        if reminder is not None:
-            rows.append([
-                InlineKeyboardButton(
-                    text=f"✅ {_format_reminder_label(reminder_type)} — {reminder.time}  ❌",
-                    callback_data=f"reminder:remove:{reminder_type}",
-                )
-            ])
-        else:
-            rows.append([
-                InlineKeyboardButton(
-                    text=f"➕ {_format_reminder_label(reminder_type)} reminder",
-                    callback_data=f"reminder:add:{reminder_type}",
-                )
-            ])
-
-    rows.append([InlineKeyboardButton(text="← Back", callback_data="settings:back")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def _parse_time_input(reminder_type: str, text: str) -> str | None:
@@ -99,46 +60,57 @@ async def _get_user_reminders(user_id: int, session):
 
 
 @router.callback_query(F.data == "menu:settings")
-async def show_settings_menu(query: CallbackQuery) -> None:
+async def show_settings_menu(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer("Settings", reply_markup=_build_settings_keyboard())
+    await query.message.answer(t(lang, "settings_title"), reply_markup=get_settings_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:reminders")
 async def show_reminders_menu(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         return
 
+    lang = getattr(user, "language", "en")
     reminders = await _get_user_reminders(user.id, session)
     await query.answer()
-    await query.message.answer("Reminders", reply_markup=_build_reminders_keyboard(reminders))
+    await query.message.answer(t(lang, "reminders_title"), reply_markup=get_reminders_keyboard(lang, reminders))
 
 
 @router.callback_query(F.data == "settings:tone")
-async def change_tone(query: CallbackQuery) -> None:
+async def change_tone(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer("Выбери тон общения:", reply_markup=get_tone_keyboard())
+    await query.message.answer(t(lang, "choose_tone"), reply_markup=get_tone_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:back")
-async def settings_back(query: CallbackQuery) -> None:
+async def settings_back(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer("Главное меню", reply_markup=get_main_menu_keyboard())
+    await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("reminder:add:"))
-async def add_reminder(query: CallbackQuery, state: FSMContext) -> None:
+async def add_reminder(query: CallbackQuery, state: FSMContext, session) -> None:
     reminder_type = query.data.split(":", 2)[2]
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     await state.update_data(reminder_type=reminder_type)
     await state.set_state(ReminderStates.waiting_for_time)
     await query.answer()
 
-    if reminder_type in {"morning", "evening"}:
-        await query.message.answer("В какое время? Напиши в формате HH:MM (например 09:00)")
-    else:
-        await query.message.answer("В какой день и время? Напиши например: Mon 10:00")
+    prompt = (
+        t(lang, "reminder_time_prompt")
+        if reminder_type in {"morning", "evening"}
+        else t(lang, "reminder_weekly_prompt")
+    )
+    await query.message.answer(prompt)
 
 
 @router.message(StateFilter(ReminderStates.waiting_for_time), F.text)
@@ -149,20 +121,21 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
         await state.clear()
         return
 
+    user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    if user is None:
+        await message.answer(t("en", "user_not_found"))
+        await state.clear()
+        return
+
+    lang = getattr(user, "language", "en")
     parsed = _parse_time_input(reminder_type, message.text)
     if parsed is None:
         prompt = (
-            "Неверный формат. Напиши в формате HH:MM (например 09:00)"
+            t(lang, "reminder_invalid")
             if reminder_type in {"morning", "evening"}
-            else "Неверный формат. Напиши например: Mon 10:00"
+            else t(lang, "reminder_weekly_invalid")
         )
         await message.answer(prompt)
-        return
-
-    user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
-    if user is None:
-        await message.answer("Пользователь не найден. Запусти /start.")
-        await state.clear()
         return
 
     reminder = await session.scalar(
@@ -179,7 +152,7 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
 
     reminders = await _get_user_reminders(user.id, session)
     await state.clear()
-    await message.answer("Напоминание сохранено.", reply_markup=_build_reminders_keyboard(reminders))
+    await message.answer(t(lang, "reminder_saved"), reply_markup=get_reminders_keyboard(lang, reminders))
 
 
 @router.callback_query(F.data.startswith("reminder:remove:"))
@@ -187,14 +160,15 @@ async def remove_reminder(query: CallbackQuery, session) -> None:
     reminder_type = query.data.split(":", 2)[2]
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         return
 
+    lang = getattr(user, "language", "en")
     reminder = await session.scalar(
         select(Reminder).filter_by(user_id=user.id, type=reminder_type, is_active=True)
     )
     if reminder is None:
-        await query.answer("Напоминание не найдено.", show_alert=True)
+        await query.answer(t(lang, "reminder_not_found"), show_alert=True)
         return
 
     reminder.is_active = False
@@ -204,4 +178,4 @@ async def remove_reminder(query: CallbackQuery, session) -> None:
 
     reminders = await _get_user_reminders(user.id, session)
     await query.answer()
-    await query.message.answer("Напоминание отключено.", reply_markup=_build_reminders_keyboard(reminders))
+    await query.message.answer(t(lang, "reminder_removed"), reply_markup=get_reminders_keyboard(lang, reminders))

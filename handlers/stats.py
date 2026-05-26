@@ -1,5 +1,5 @@
 import calendar
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 
 from aiogram import F, Router
 from aiogram.filters import StateFilter
@@ -9,42 +9,42 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from sqlalchemy import select
 
 from db.models import User, Win
-from keyboards import get_main_menu_keyboard
+from locales import t
 
 router = Router()
 
 
-def get_stats_menu_keyboard() -> InlineKeyboardMarkup:
+def get_stats_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📅 This week", callback_data="stats:week"),
-         InlineKeyboardButton(text="📆 This month", callback_data="stats:month")],
-        [InlineKeyboardButton(text="🗓 All time", callback_data="stats:all"),
-         InlineKeyboardButton(text="⚖️ Compare", callback_data="stats:compare")],
-        [InlineKeyboardButton(text="← Back", callback_data="stats:back")],
+        [InlineKeyboardButton(text=t(lang, "btn_this_week"), callback_data="stats:week"),
+         InlineKeyboardButton(text=t(lang, "btn_this_month"), callback_data="stats:month")],
+        [InlineKeyboardButton(text=t(lang, "btn_all_time"), callback_data="stats:all"),
+         InlineKeyboardButton(text=t(lang, "btn_compare"), callback_data="stats:compare")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="stats:back")],
     ])
 
 
-def get_back_to_stats_keyboard() -> InlineKeyboardMarkup:
+def get_back_to_stats_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="← Back to stats", callback_data="stats:back")],
+        [InlineKeyboardButton(text=t(lang, "btn_back_to_stats"), callback_data="stats:back")],
     ])
 
 
-def get_compare_keyboard() -> InlineKeyboardMarkup:
+def get_compare_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="This week", callback_data="compare:first:this_week"),
-         InlineKeyboardButton(text="Last week", callback_data="compare:first:last_week")],
-        [InlineKeyboardButton(text="This month", callback_data="compare:first:this_month"),
-         InlineKeyboardButton(text="Last month", callback_data="compare:first:last_month")],
+        [InlineKeyboardButton(text=t(lang, "period_this_week"), callback_data="compare:first:this_week"),
+         InlineKeyboardButton(text=t(lang, "period_last_week"), callback_data="compare:first:last_week")],
+        [InlineKeyboardButton(text=t(lang, "period_this_month"), callback_data="compare:first:this_month"),
+         InlineKeyboardButton(text=t(lang, "period_last_month"), callback_data="compare:first:last_month")],
     ])
 
 
-def get_second_compare_keyboard(first_choice: str) -> InlineKeyboardMarkup:
+def get_second_compare_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="This week", callback_data=f"compare:second:this_week"),
-         InlineKeyboardButton(text="Last week", callback_data=f"compare:second:last_week")],
-        [InlineKeyboardButton(text="This month", callback_data=f"compare:second:this_month"),
-         InlineKeyboardButton(text="Last month", callback_data=f"compare:second:last_month")],
+        [InlineKeyboardButton(text=t(lang, "period_this_week"), callback_data=f"compare:second:this_week"),
+         InlineKeyboardButton(text=t(lang, "period_last_week"), callback_data=f"compare:second:last_week")],
+        [InlineKeyboardButton(text=t(lang, "period_this_month"), callback_data=f"compare:second:this_month"),
+         InlineKeyboardButton(text=t(lang, "period_last_month"), callback_data=f"compare:second:last_month")],
     ])
 
 
@@ -79,18 +79,27 @@ def _get_period_range(period_key: str) -> tuple[datetime, datetime]:
     )
 
 
-def _format_date(dt: datetime, with_year: bool = True) -> str:
+def _month_name(month: int, lang: str) -> str:
+    if lang == "ru":
+        return [
+            "", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+        ][month]
+    return calendar.month_name[month]
+
+
+def _format_date(dt: datetime, with_year: bool = True, lang: str = "en") -> str:
     if with_year:
         return dt.strftime("%d %b %Y")
     return dt.strftime("%a, %d %b")
 
 
-def _period_label(period_key: str) -> str:
+def _period_label(period_key: str, lang: str) -> str:
     return {
-        "this_week": "This week",
-        "last_week": "Last week",
-        "this_month": "This month",
-        "last_month": "Last month",
+        "this_week": t(lang, "period_this_week"),
+        "last_week": t(lang, "period_last_week"),
+        "this_month": t(lang, "period_this_month"),
+        "last_month": t(lang, "period_last_month"),
     }[period_key]
 
 
@@ -100,19 +109,19 @@ def _get_wins_stats(wins: list[Win], start: datetime | None = None, end: datetim
     return len(filtered), len(days), sorted(filtered, key=lambda win: win.created_at)
 
 
-def _build_period_report(period_name: str, wins: list[Win], days_in_period: int) -> str:
+def _build_period_report(period_name: str, wins: list[Win], days_in_period: int, lang: str) -> str:
     total, active_days, filtered = _get_wins_stats(wins)
-    lines = [f"📊 {period_name}", "", f"Wins recorded: {total}", f"Active days: {active_days} out of {days_in_period}", ""]
+    lines = [t(lang, "report_title", title=period_name), "", t(lang, "report_total_wins", n=total), t(lang, "active_days", n=active_days, total=days_in_period), ""]
     if filtered:
-        lines.append("Your wins:")
+        lines.append(t(lang, "report_your_wins"))
         for win in filtered:
-            lines.append(f"— {win.raw_text} ({_format_date(win.created_at, with_year=False)})")
+            lines.append(f"— {win.raw_text} ({_format_date(win.created_at, with_year=False, lang=lang)})")
     else:
-        lines.append("No wins recorded yet.")
+        lines.append(t(lang, "report_no_wins"))
     return "\n".join(lines)
 
 
-def _build_all_time_report(wins: list[Win]) -> str:
+def _build_all_time_report(wins: list[Win], lang: str) -> str:
     total = len(wins)
     unique_days = {win.created_at.date() for win in wins}
     if wins:
@@ -123,50 +132,45 @@ def _build_all_time_report(wins: list[Win]) -> str:
             key = (win.created_at.year, win.created_at.month)
             month_counts[key] = month_counts.get(key, 0) + 1
         most_active = max(month_counts.items(), key=lambda item: item[1])
-        month_name = calendar.month_name[most_active[0][1]]
+        most_active_name = _month_name(most_active[0][1], lang)
         month_count = most_active[1]
         lines = [
-            "📊 All time",
+            t(lang, "report_title", title=t(lang, "period_caption", label=t(lang, "btn_all_time"))),
             "",
-            f"Total wins: {total}",
-            f"Days with the bot: {len(unique_days)}",
-            f"Most active month: {month_name} ({month_count} wins)",
-            f"First win: {_format_date(first)}",
-            f"Latest win: {_format_date(latest)}",
+            t(lang, "report_total_wins", n=total),
+            t(lang, "report_days_with_bot", n=len(unique_days)),
+            t(lang, "report_most_active_month", month=most_active_name, count=month_count),
+            t(lang, "report_first_win", date=_format_date(first, lang=lang)),
+            t(lang, "report_latest_win", date=_format_date(latest, lang=lang)),
         ]
     else:
         lines = [
-            "📊 All time",
+            t(lang, "report_title", title=t(lang, "btn_all_time")),
             "",
-            "Total wins: 0",
-            "Days with the bot: 0",
-            "Most active month: —",
-            "First win: —",
-            "Latest win: —",
+            t(lang, "report_total_wins", n=0),
+            t(lang, "report_days_with_bot", n=0),
+            t(lang, "report_most_active_month", month="—", count=0),
+            t(lang, "report_first_win", date="—"),
+            t(lang, "report_latest_win", date="—"),
         ]
     return "\n".join(lines)
 
 
-def _format_compare_report(first_key: str, second_key: str, first_stats: tuple[int, int], second_stats: tuple[int, int]) -> str:
-    first_label = _period_label(first_key)
-    second_label = _period_label(second_key)
+def _format_compare_report(first_key: str, second_key: str, first_stats: tuple[int, int], second_stats: tuple[int, int], lang: str) -> str:
+    first_label = _period_label(first_key, lang)
+    second_label = _period_label(second_key, lang)
     first_wins, first_days = first_stats
     second_wins, second_days = second_stats
     diff = first_wins - second_wins
     if diff > 0:
-        diff_line = f"+{diff} wins compared to {second_label} 📈"
+        diff_line = t(lang, "compare_diff_positive", diff=diff, other=second_label)
     elif diff < 0:
-        diff_line = f"{diff} wins compared to {second_label} 📉"
+        diff_line = t(lang, "compare_diff_negative", diff=abs(diff), other=second_label)
     else:
-        diff_line = f"Same wins as {second_label}."
+        diff_line = t(lang, "compare_diff_same", other=second_label)
 
     return "\n".join([
-        f"⚖️ {first_label} vs {second_label}",
-        "",
-        f"{first_label}:  {first_wins} wins, {first_days} active days",
-        f"{second_label}:  {second_wins} wins, {second_days} active days",
-        "",
-        diff_line,
+        t(lang, "compare_result", first=first_label, second=second_label, w1=first_wins, d1=first_days, w2=second_wins, d2=second_days, diff=diff_line),
     ])
 
 
@@ -180,126 +184,81 @@ async def _get_user_and_wins(query: CallbackQuery, session) -> tuple[User | None
 
 @router.callback_query(F.data == "menu:stats")
 async def show_stats_menu(query: CallbackQuery, session) -> None:
+    user, _ = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer("📊 Stats", reply_markup=get_stats_menu_keyboard())
+    await query.message.answer(t(lang, "stats_title"), reply_markup=get_stats_menu_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:back")
 async def back_to_stats(query: CallbackQuery, session) -> None:
+    user, _ = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer("📊 Stats", reply_markup=get_stats_menu_keyboard())
+    await query.message.answer(t(lang, "stats_title"), reply_markup=get_stats_menu_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:week")
 async def show_this_week(query: CallbackQuery, session) -> None:
     user, wins = await _get_user_and_wins(query, session)
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         return
 
+    lang = getattr(user, "language", "en")
     start, end = _get_period_range("this_week")
     filtered = [win for win in wins if start <= win.created_at < end]
     total = len(filtered)
     active = len({win.created_at.date() for win in filtered})
-    lines = [
-        "📊 This week",
-        "",
-        f"Wins recorded: {total}",
-        f"Active days: {active} out of 7",
-        "",
-    ]
-    if filtered:
-        lines.append("Your wins:")
-        for win in filtered:
-            lines.append(f"— {win.raw_text} ({_format_date(win.created_at, with_year=False)})")
-    else:
-        lines.append("No wins recorded yet.")
-
     await query.answer()
-    await query.message.answer("\n".join(lines), reply_markup=get_back_to_stats_keyboard())
+    await query.message.answer(
+        _build_period_report(t(lang, "period_this_week"), filtered, 7, lang),
+        reply_markup=get_back_to_stats_keyboard(lang),
+    )
 
 
 @router.callback_query(F.data == "stats:month")
 async def show_this_month(query: CallbackQuery, session) -> None:
     user, wins = await _get_user_and_wins(query, session)
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         return
 
+    lang = getattr(user, "language", "en")
     start, end = _get_period_range("this_month")
     filtered = [win for win in wins if start <= win.created_at < end]
-    total = len(filtered)
-    active = len({win.created_at.date() for win in filtered})
     days_in_month = calendar.monthrange(start.year, start.month)[1]
-    month_name = calendar.month_name[start.month]
-
-    lines = [
-        f"📊 {month_name} {start.year}",
-        "",
-        f"Wins recorded: {total}",
-        f"Active days: {active} out of {days_in_month}",
-        "",
-    ]
-    if filtered:
-        lines.append("Your wins:")
-        for win in filtered:
-            lines.append(f"— {win.raw_text} ({_format_date(win.created_at, with_year=False)})")
-    else:
-        lines.append("No wins recorded yet.")
-
+    month_name = _month_name(start.month, lang)
     await query.answer()
-    await query.message.answer("\n".join(lines), reply_markup=get_back_to_stats_keyboard())
+    await query.message.answer(
+        _build_period_report(f"{month_name} {start.year}", filtered, days_in_month, lang),
+        reply_markup=get_back_to_stats_keyboard(lang),
+    )
 
 
 @router.callback_query(F.data == "stats:all")
 async def show_all_time(query: CallbackQuery, session) -> None:
     user, wins = await _get_user_and_wins(query, session)
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         return
 
-    total = len(wins)
-    unique_days = len({win.created_at.date() for win in wins})
-    lines = [
-        "📊 All time",
-        "",
-        f"Total wins: {total}",
-        f"Days with the bot: {unique_days}",
-    ]
-
-    if wins:
-        month_counts: dict[tuple[int, int], int] = {}
-        for win in wins:
-            key = (win.created_at.year, win.created_at.month)
-            month_counts[key] = month_counts.get(key, 0) + 1
-        most_active = max(month_counts.items(), key=lambda item: item[1])
-        most_active_name = calendar.month_name[most_active[0][1]]
-        lines.extend([
-            f"Most active month: {most_active_name} ({most_active[1]} wins)",
-            f"First win: {_format_date(wins[0].created_at)}",
-            f"Latest win: {_format_date(wins[-1].created_at)}",
-        ])
-    else:
-        lines.extend([
-            "Most active month: —",
-            "First win: —",
-            "Latest win: —",
-        ])
-
+    lang = getattr(user, "language", "en")
     await query.answer()
-    await query.message.answer("\n".join(lines), reply_markup=get_back_to_stats_keyboard())
+    await query.message.answer(_build_all_time_report(wins, lang), reply_markup=get_back_to_stats_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:compare")
 async def start_compare(query: CallbackQuery, state: FSMContext, session) -> None:
-    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    user, _ = await _get_user_and_wins(query, session)
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         return
 
+    lang = getattr(user, "language", "en")
     await state.set_state(CompareStates.choosing_first)
     await query.answer()
-    await query.message.answer("Выбери первый период для сравнения:", reply_markup=get_compare_keyboard())
+    await query.message.answer(t(lang, "choose_first_period_prompt"), reply_markup=get_compare_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("compare:first:"), StateFilter(CompareStates.choosing_first))
@@ -307,26 +266,28 @@ async def choose_first_period(query: CallbackQuery, state: FSMContext, session) 
     first_choice = query.data.split(":", 2)[2]
     await state.update_data(first_choice=first_choice)
     await state.set_state(CompareStates.choosing_second)
+    user, _ = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer("Теперь выбери второй период:", reply_markup=get_second_compare_keyboard(first_choice))
+    await query.message.answer(t(lang, "choose_second_period_prompt"), reply_markup=get_second_compare_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("compare:second:"), StateFilter(CompareStates.choosing_second))
 async def choose_second_period(query: CallbackQuery, state: FSMContext, session) -> None:
     data = await state.get_data()
     first_choice = data.get("first_choice")
+    user, wins = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
+        await state.clear()
+        return
     if not first_choice:
-        await query.answer("Выбери первый период заново.", show_alert=True)
+        await query.answer(t(lang, "choose_first_period_prompt"), show_alert=True)
         await state.clear()
         return
 
     second_choice = query.data.split(":", 2)[2]
-    user, wins = await _get_user_and_wins(query, session)
-    if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
-        await state.clear()
-        return
-
     first_start, first_end = _get_period_range(first_choice)
     second_start, second_end = _get_period_range(second_choice)
     first_stats = _get_wins_stats(wins, first_start, first_end)
@@ -334,7 +295,7 @@ async def choose_second_period(query: CallbackQuery, state: FSMContext, session)
 
     await query.answer()
     await query.message.answer(
-        _format_compare_report(first_choice, second_choice, first_stats[:2], second_stats[:2]),
-        reply_markup=get_back_to_stats_keyboard(),
+        _format_compare_report(first_choice, second_choice, first_stats[:2], second_stats[:2], lang),
+        reply_markup=get_back_to_stats_keyboard(lang),
     )
     await state.clear()

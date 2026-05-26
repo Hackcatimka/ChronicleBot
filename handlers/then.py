@@ -9,14 +9,15 @@ from sqlalchemy import select
 from ai import ask_reflect
 from db.models import User, Win
 from keyboards import get_main_menu_keyboard
+from locales import t
 
 router = Router()
 
 
-def get_time_machine_keyboard() -> InlineKeyboardMarkup:
+def get_time_machine_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🎲 Show another", callback_data="then:another")],
-        [InlineKeyboardButton(text="← Back", callback_data="then:back")],
+        [InlineKeyboardButton(text=t(lang, "btn_show_another"), callback_data="then:another")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="then:back")],
     ])
 
 
@@ -58,34 +59,31 @@ async def _select_random_old_win(session, query: CallbackQuery, exclude_id: int 
 async def show_time_machine(query: CallbackQuery, state: FSMContext, session) -> None:
     user, ids = await _get_user_and_old_win_ids(query, session)
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         return
 
+    lang = getattr(user, "language", "en")
     if not ids:
         await query.answer()
         await query.message.answer(
-            "⏪ Time machine\n\nNo memories yet. Keep recording your wins —\nin a week I'll have something to show you.",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="← Back", callback_data="then:back")]]),
+            t(lang, "no_memories"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="then:back")]]),
         )
         return
 
     win_id = random.choice(ids)
     win = await _fetch_win_by_id(session, win_id)
     if win is None:
-        await query.answer("Ошибка при выборе памяти.", show_alert=True)
+        await query.answer(t(lang, "goal_not_found"), show_alert=True)
         return
 
     days_ago = (datetime.utcnow().date() - win.created_at.date()).days
     await state.update_data(last_win_id=win.id)
     await query.answer()
-    try:
-        reflection = await ask_reflect(user.tone, win.raw_text, days_ago)
-        await query.message.answer(reflection, reply_markup=get_time_machine_keyboard())
-    except Exception:
-        await query.message.answer(
-            f"⏪ Time machine\n\nOn {_format_date(win.created_at)} you wrote:\n\n\"{win.raw_text}\"\n\nThat was {days_ago} days ago.",
-            reply_markup=get_time_machine_keyboard(),
-        )
+    await query.message.answer(
+        t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago),
+        reply_markup=get_time_machine_keyboard(lang),
+    )
 
 
 @router.callback_query(F.data == "then:another")
@@ -94,33 +92,30 @@ async def show_another(query: CallbackQuery, state: FSMContext, session) -> None
     last_win_id = data.get("last_win_id")
     user, win, ids = await _select_random_old_win(session, query, exclude_id=last_win_id)
     if user is None:
-        await query.answer("Пользователь не найден. Запусти /start.", show_alert=True)
+        await query.answer(t("en", "user_not_found"), show_alert=True)
         await state.clear()
         return
 
+    lang = getattr(user, "language", "en")
     if win is None:
         await query.answer()
         await query.message.answer(
-            "That's the only memory I have so far. Keep going! 🏆",
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text="← Back", callback_data="then:back")]]),
+            t(lang, "only_memory"),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="then:back")]]),
         )
         return
 
     days_ago = (datetime.utcnow().date() - win.created_at.date()).days
     await state.update_data(last_win_id=win.id)
     await query.answer()
-    try:
-        reflection = await ask_reflect(user.tone, win.raw_text, days_ago)
-        await query.message.answer(reflection, reply_markup=get_time_machine_keyboard())
-    except Exception:
-        await query.message.answer(
-            f"⏪ Time machine\n\nOn {_format_date(win.created_at)} you wrote:\n\n\"{win.raw_text}\"\n\nThat was {days_ago} days ago.",
-            reply_markup=get_time_machine_keyboard(),
-        )
+    await query.message.answer(
+        t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago),
+        reply_markup=get_time_machine_keyboard(lang),
+    )
 
 
 @router.callback_query(F.data == "then:back")
 async def time_machine_back(query: CallbackQuery, state: FSMContext) -> None:
     await state.clear()
     await query.answer()
-    await query.message.answer("Главное меню", reply_markup=get_main_menu_keyboard())
+    await query.message.answer(t("en", "main_menu"), reply_markup=get_main_menu_keyboard("en"))

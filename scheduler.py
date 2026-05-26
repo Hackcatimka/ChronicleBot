@@ -6,6 +6,7 @@ from apscheduler.triggers.cron import CronTrigger
 from sqlalchemy import select
 
 from ai import ask_weekly_narrative
+from locales import t
 
 from db.engine import async_session
 from db.models import Reminder, User, Win
@@ -40,22 +41,23 @@ async def _send_weekly_digest(user: User, session) -> str:
 
     if wins:
         try:
-            return await ask_weekly_narrative(user.tone, [win.raw_text for win in wins])
+            return await ask_weekly_narrative(user.tone, [win.raw_text for win in wins], user.language)
         except Exception:
             pass
 
+    lang = getattr(user, "language", "en")
     lines = [
-        "📊 Weekly digest",
+        t(lang, "weekly_digest_title"),
         "",
-        f"This week you recorded {len(wins)} wins.",
+        t(lang, "weekly_digest_summary", count=len(wins)),
     ]
     if wins:
         for win in wins:
             lines.append(f"— {win.raw_text}")
     else:
-        lines.append("No wins yet.")
+        lines.append(t(lang, "weekly_digest_no_wins"))
     lines.append("")
-    lines.append("Keep it up!")
+    lines.append(t(lang, "weekly_digest_encouragement"))
     return "\n".join(lines)
 
 
@@ -74,9 +76,9 @@ async def _send_reminder(reminder_id: int, bot) -> None:
             return
 
         if reminder.type == "morning":
-            text = "🌅 Morning check-in\n\nWhat's one thing you want to win today?"
+            text = t(user.language, "morning_checkin")
         elif reminder.type == "evening":
-            text = "🌙 Evening check-in\n\nWhat went well today? Write me a win."
+            text = t(user.language, "evening_checkin")
         elif reminder.type == "weekly":
             text = await _send_weekly_digest(user, session)
         else:

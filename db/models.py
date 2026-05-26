@@ -11,6 +11,7 @@ class User(Base):
     tg_id = Column(BigInteger, unique=True, nullable=False, index=True)
     name = Column(String(255), nullable=False)
     tone = Column(String(50), nullable=False)
+    language = Column(String(10), nullable=False, default="en")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_active_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
