@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
@@ -34,7 +34,7 @@ def _build_trigger(reminder: Reminder) -> CronTrigger:
 
 
 async def _send_weekly_digest(user: User, session) -> str:
-    cutoff = datetime.utcnow() - timedelta(days=7)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     wins = (await session.scalars(
         select(Win).filter(Win.user_id == user.id, Win.created_at >= cutoff).order_by(Win.created_at)
     )).all()

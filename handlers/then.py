@@ -1,5 +1,5 @@
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -30,7 +30,7 @@ async def _get_user_and_old_win_ids(query: CallbackQuery, session):
     if user is None:
         return None, []
 
-    cutoff = datetime.utcnow() - timedelta(days=7)
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
     ids = await session.scalars(
         select(Win.id).filter(Win.user_id == user.id, Win.created_at < cutoff)
     )
@@ -77,7 +77,7 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session) ->
         await query.answer(t(lang, "goal_not_found"), show_alert=True)
         return
 
-    days_ago = (datetime.utcnow().date() - win.created_at.date()).days
+    days_ago = (datetime.now(timezone.utc).date() - win.created_at.date()).days
     await state.update_data(last_win_id=win.id)
     await query.answer()
     await query.message.answer(
@@ -105,7 +105,7 @@ async def show_another(query: CallbackQuery, state: FSMContext, session) -> None
         )
         return
 
-    days_ago = (datetime.utcnow().date() - win.created_at.date()).days
+    days_ago = (datetime.now(timezone.utc).date() - win.created_at.date()).days
     await state.update_data(last_win_id=win.id)
     await query.answer()
     await query.message.answer(

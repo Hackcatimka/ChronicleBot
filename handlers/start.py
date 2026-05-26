@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import F, Router
 from aiogram.filters import Command
@@ -20,7 +20,7 @@ async def start_handler(message: Message, session) -> None:
         return
 
     lang = getattr(user, "language", "en")
-    user.last_active_at = datetime.utcnow()
+    user.last_active_at = datetime.now(timezone.utc)
     session.add(user)
     await session.commit()
     await message.answer(t(lang, "welcome_back", name=user.name))
@@ -42,7 +42,7 @@ async def language_callback(query: CallbackQuery, session) -> None:
         session.add(user)
     else:
         user.language = lang
-        user.last_active_at = datetime.utcnow()
+        user.last_active_at = datetime.now(timezone.utc)
         session.add(user)
 
     await session.commit()
@@ -67,7 +67,7 @@ async def tone_callback(query: CallbackQuery, session) -> None:
     else:
         lang = getattr(user, "language", "en")
         user.tone = tone
-        user.last_active_at = datetime.utcnow()
+        user.last_active_at = datetime.now(timezone.utc)
         session.add(user)
 
     await session.commit()

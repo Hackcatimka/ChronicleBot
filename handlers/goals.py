@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import F, Router
 from aiogram.filters import StateFilter
@@ -238,7 +238,7 @@ async def complete_goal(query: CallbackQuery, session) -> None:
 
     goal.status = "done"
     await session.commit()
-    days = (datetime.utcnow().date() - goal.created_at.date()).days
+    days = (datetime.now(timezone.utc).date() - goal.created_at.date()).days
     await query.answer()
     await query.message.answer(t(lang, "goal_done", title=goal.title, days=days))
 

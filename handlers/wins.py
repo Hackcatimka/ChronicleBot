@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 
 from aiogram import F, Router
 from aiogram.filters import StateFilter
@@ -40,7 +40,7 @@ async def request_win_text(message: Message, state: FSMContext, session) -> None
     await state.update_data(raw_text=message.text)
     await state.set_state(WinStates.waiting_for_confirmation)
 
-    user.last_active_at = datetime.utcnow()
+    user.last_active_at = datetime.now(timezone.utc)
     session.add(user)
     await session.commit()
 
@@ -66,7 +66,7 @@ async def save_win(query: CallbackQuery, state: FSMContext, session) -> None:
     lang = getattr(user, "language", "en")
     win = Win(user_id=user.id, raw_text=raw_text, processed_text=raw_text)
     session.add(win)
-    user.last_active_at = datetime.utcnow()
+    user.last_active_at = datetime.now(timezone.utc)
     session.add(user)
     await session.commit()
 
