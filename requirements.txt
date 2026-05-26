@@ -3,4 +3,5 @@ sqlalchemy[asyncio]
 asyncpg
 pydantic-settings
 apscheduler==3.10.4
-groq==0.9.0
+groq==0.11.0
+httpx==0.27.0
