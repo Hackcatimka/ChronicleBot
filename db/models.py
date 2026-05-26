@@ -54,9 +54,6 @@ class WinGoal(Base):
     win_id = Column(Integer, ForeignKey("wins.id", ondelete="CASCADE"), nullable=False, index=True)
     goal_id = Column(Integer, ForeignKey("goals.id", ondelete="CASCADE"), nullable=False, index=True)
 
-    win = relationship("Win", back_populates="goals")
-    goal = relationship("Goal", back_populates="wins")
-
 
 class Reminder(Base):
     __tablename__ = "reminders"
