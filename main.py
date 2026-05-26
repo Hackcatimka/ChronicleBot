@@ -2,6 +2,7 @@ import asyncio
 import logging
 
 from aiogram import BaseMiddleware, Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 
 from config import settings
 from db.engine import async_session, init_db
@@ -24,7 +25,7 @@ class DBSessionMiddleware(BaseMiddleware):
 
 
 async def main() -> None:
-    bot = Bot(token=settings.BOT_TOKEN, parse_mode="HTML")
+    bot = Bot(token=settings.BOT_TOKEN, default=DefaultBotProperties(parse_mode="HTML"))
     dp = Dispatcher()
     dp.message.middleware(DBSessionMiddleware())
     dp.callback_query.middleware(DBSessionMiddleware())
