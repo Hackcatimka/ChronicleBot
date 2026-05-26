@@ -62,6 +62,6 @@ class Reminder(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     type = Column(String(50), nullable=False)
     time = Column(String(50), nullable=False)
-    is_active = Column(Integer, nullable=False, default=1)
+    is_active = Column(Boolean, nullable=False, default=True)
 
     user = relationship("User", back_populates="reminders")
