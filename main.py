@@ -37,6 +37,9 @@ async def main() -> None:
     dp.include_router(goals_router)
     dp.include_router(wins_router)
 
+    print(f"DEBUG: DATABASE_URL scheme = {settings.DATABASE_URL.split('://')[0]}")
+    print(f"DEBUG: DATABASE_URL host = {settings.DATABASE_URL.split('@')[1].split(':')[0] if '@' in settings.DATABASE_URL else 'unknown'}")
+
     await init_db()
     await init_scheduler(bot)
     await dp.start_polling(bot)
