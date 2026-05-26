@@ -1,3 +1,5 @@
+import os
+
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
@@ -17,6 +19,12 @@ class Settings(BaseSettings):
     def fix_db_url(cls, v: str) -> str:
         # Railway даёт postgresql://, asyncpg требует postgresql+asyncpg://
         return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+    @field_validator("GROQ_API_KEY", mode="before")
+    @classmethod
+    def fix_groq_api_key(cls, v: str | None) -> str | None:
+        # Accept either GROQ_API_KEY or XAI_API_KEY from environment
+        return v or os.getenv("XAI_API_KEY")
 
 
 settings = Settings()
