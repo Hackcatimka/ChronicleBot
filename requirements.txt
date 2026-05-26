@@ -1,0 +1,6 @@
+aiogram==3.7.0
+sqlalchemy[asyncio]
+asyncpg
+pydantic-settings
+apscheduler==3.10.4
+groq==0.9.0
