@@ -1,15 +1,20 @@
+import asyncio
 from datetime import datetime, timezone
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import func, select
 
-from ai import ask_praise
+from ai import ask_praise, classify_intent, classify_tag
+from ratelimit import check as rate_check
+
+_saving_users: set[int] = set()
 from db.models import Goal, User, Win, WinGoal
-from keyboards import get_main_menu_keyboard, get_win_confirmation_keyboard
+from keyboards import get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
 
 router = Router()
@@ -27,61 +32,131 @@ async def _show_main_menu(message: Message, session) -> None:
 
 
 @router.message(F.text, ~StateFilter(WinStates.waiting_for_confirmation))
-async def request_win_text(message: Message, state: FSMContext, session) -> None:
+async def request_win_text(message: Message, state: FSMContext, session, bot: Bot) -> None:
     if message.text is None or message.text.startswith("/"):
         return
 
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await message.answer(t("en", "user_not_found"))
+        await message.answer(t(lang, "user_not_found"))
         return
 
-    lang = getattr(user, "language", "en")
-    await state.update_data(raw_text=message.text)
-    await state.set_state(WinStates.waiting_for_confirmation)
+    if not rate_check(message.from_user.id):
+        await message.answer(t(lang, "rate_limited"))
+        return
 
     user.last_active_at = datetime.now(timezone.utc)
     session.add(user)
     await session.commit()
 
-    await message.answer(
-        t(lang, "win_received", text=message.text),
+    async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
+        intent, tag = await asyncio.gather(
+            classify_intent(message.text),
+            classify_tag(message.text),
+        )
+    await state.update_data(raw_text=message.text, tag=tag)
+    await state.set_state(WinStates.waiting_for_confirmation)
+
+    if intent == "goal":
+        await message.answer(
+            t(lang, "intent_goal_question"),
+            reply_markup=get_intent_keyboard(lang),
+        )
+    else:
+        await message.answer(
+            t(lang, "win_received", text=message.text),
+            reply_markup=get_win_confirmation_keyboard(lang),
+        )
+
+
+@router.callback_query(F.data == "intent:as_win")
+async def intent_as_win(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    raw_text = data.get("raw_text")
+    if not raw_text:
+        await query.answer(t(lang, "no_text_to_save"), show_alert=True)
+        await state.clear()
+        return
+    await query.answer()
+    await query.message.answer(
+        t(lang, "win_received", text=raw_text),
         reply_markup=get_win_confirmation_keyboard(lang),
     )
 
 
+@router.callback_query(F.data == "intent:as_goal")
+async def intent_as_goal(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    raw_text = data.get("raw_text")
+    if not raw_text or user is None:
+        await query.answer(t(lang, "no_text_to_save"), show_alert=True)
+        await state.clear()
+        return
+
+    goal = Goal(user_id=user.id, title=raw_text, status="active")
+    session.add(goal)
+    await query.answer()
+    await session.commit()
+    await state.clear()
+    await query.message.answer(
+        t(lang, "goal_saved_quick", title=raw_text),
+        reply_markup=get_main_menu_keyboard(lang),
+    )
+
+
 @router.callback_query(F.data == "save_win")
-async def save_win(query: CallbackQuery, state: FSMContext, session) -> None:
+async def save_win(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
+    uid = query.from_user.id
+    if uid in _saving_users:
+        await query.answer()
+        return
+    _saving_users.add(uid)
+    try:
+        await _do_save_win(query, state, session, bot)
+    finally:
+        _saving_users.discard(uid)
+
+
+async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+
+    if user is None:
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
+        return
     data = await state.get_data()
     raw_text = data.get("raw_text")
     if not raw_text:
-        await query.answer(t("en", "no_text_to_save"), show_alert=True)
+        await query.answer(t(lang, "no_text_to_save"), show_alert=True)
         return
-
-    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
-    if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
-        return
-
-    lang = getattr(user, "language", "en")
-    win = Win(user_id=user.id, raw_text=raw_text, processed_text=raw_text)
+    tag = data.get("tag", "other")
+    win = Win(user_id=user.id, raw_text=raw_text, processed_text=raw_text, tag=tag)
     session.add(win)
     user.last_active_at = datetime.now(timezone.utc)
     session.add(user)
     await session.commit()
 
     count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id))
+    tag_label = t(lang, f"tag_{tag}")
     await query.answer()
     try:
-        praise = await ask_praise(user.tone, raw_text, count, lang)
-        await query.message.answer(praise)
+        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+            praise = await ask_praise(user.tone, raw_text, count, lang)
+        await query.message.answer(f"{praise}\n\n{tag_label}")
     except Exception:
         tone_reply = {
             "friend": t(lang, "tone_reply_friend", count=count),
             "coach": t(lang, "tone_reply_coach", count=count),
             "mirror": t(lang, "tone_reply_mirror", count=count),
         }
-        await query.message.answer(tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)))
+        await query.message.answer(
+            tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)) + f"\n\n{tag_label}"
+        )
 
     await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))
     await state.clear()
@@ -107,18 +182,18 @@ async def cancel_win(query: CallbackQuery, state: FSMContext, session) -> None:
 
 @router.callback_query(F.data == "link_goal")
 async def link_goal(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+
     data = await state.get_data()
     raw_text = data.get("raw_text")
     if not raw_text:
-        await query.answer(t("en", "no_text_to_save"), show_alert=True)
+        await query.answer(t(lang, "no_text_to_save"), show_alert=True)
         return
 
-    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
-
-    lang = getattr(user, "language", "en")
     goals = await session.scalars(select(Goal).filter_by(user_id=user.id, status="active"))
     goals = goals.all()
     if not goals:
@@ -149,14 +224,17 @@ async def link_win_to_goal(query: CallbackQuery, state: FSMContext, session) -> 
     goal_id = int(query.data.split(":", 2)[2])
     data = await state.get_data()
     win_id = data.get("win_id")
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+
     if not win_id:
-        await query.answer(t("en", "no_text_to_save"), show_alert=True)
+        await query.answer(t(lang, "no_text_to_save"), show_alert=True)
         await state.clear()
         return
 
-    goal = await session.scalar(select(Goal).filter_by(id=goal_id, user_id=query.from_user.id, status="active"))
+    goal = await session.scalar(select(Goal).filter_by(id=goal_id, user_id=user.id, status="active"))
     if goal is None:
-        await query.answer(t("en", "goal_not_found"), show_alert=True)
+        await query.answer(t(lang, "goal_not_found"), show_alert=True)
         await state.clear()
         return
 
@@ -165,9 +243,6 @@ async def link_win_to_goal(query: CallbackQuery, state: FSMContext, session) -> 
         link = WinGoal(win_id=win_id, goal_id=goal.id)
         session.add(link)
         await session.commit()
-
-    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
-    lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
     await query.message.answer(t(lang, "win_linked"))
     await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))

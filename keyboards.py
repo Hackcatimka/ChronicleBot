@@ -20,12 +20,17 @@ def get_tone_keyboard(lang: str) -> InlineKeyboardMarkup:
 
 def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=t(lang, "btn_record_win"), callback_data="menu:record_win"),
-         InlineKeyboardButton(text=t(lang, "btn_goals"), callback_data="menu:goals")],
-        [InlineKeyboardButton(text=t(lang, "btn_reflect"), callback_data="menu:changed"),
-         InlineKeyboardButton(text=t(lang, "btn_stats"), callback_data="menu:stats")],
-        [InlineKeyboardButton(text=t(lang, "btn_time_machine"), callback_data="menu:time_machine"),
-         InlineKeyboardButton(text=t(lang, "btn_settings"), callback_data="menu:settings")],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_stats"), callback_data="menu:stats"),
+            InlineKeyboardButton(text=t(lang, "btn_goals"), callback_data="menu:goals"),
+        ],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_reflect"), callback_data="menu:reflect"),
+            InlineKeyboardButton(text=t(lang, "btn_time_machine"), callback_data="menu:time_machine"),
+        ],
+        [
+            InlineKeyboardButton(text=t(lang, "btn_settings"), callback_data="menu:settings"),
+        ],
     ])
 
 
@@ -33,6 +38,15 @@ def get_win_confirmation_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(lang, "btn_save"), callback_data="save_win"),
          InlineKeyboardButton(text=t(lang, "btn_link_goal"), callback_data="link_goal")],
+        [InlineKeyboardButton(text=t(lang, "btn_edit"), callback_data="edit_win"),
+         InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="cancel_win")],
+    ])
+
+
+def get_intent_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_add_as_goal"), callback_data="intent:as_goal"),
+         InlineKeyboardButton(text=t(lang, "btn_save_as_win"), callback_data="intent:as_win")],
         [InlineKeyboardButton(text=t(lang, "btn_edit"), callback_data="edit_win"),
          InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="cancel_win")],
     ])
@@ -100,7 +114,7 @@ def get_reminders_keyboard(lang: str, reminders: list) -> InlineKeyboardMarkup:
                     callback_data=f"reminder:add:{reminder_type}",
                 )
             ])
-    rows.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="settings:back")])
+    rows.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="settings:show")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -122,6 +136,7 @@ def get_goal_detail_buttons(lang: str, goal_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(lang, "btn_mark_done"), callback_data=f"goal:done:{goal_id}"),
          InlineKeyboardButton(text=t(lang, "btn_abandon"), callback_data=f"goal:abandon:{goal_id}")],
+        [InlineKeyboardButton(text=t(lang, "btn_analyse_goal"), callback_data=f"goal:analyse:{goal_id}")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="goals:list")],
     ])
 

@@ -70,11 +70,11 @@ async def show_settings_menu(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data == "settings:reminders")
 async def show_reminders_menu(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    lang = getattr(user, "language", "en")
     reminders = await _get_user_reminders(user.id, session)
     await query.answer()
     await query.message.answer(t(lang, "reminders_title"), reply_markup=get_reminders_keyboard(lang, reminders))
@@ -94,6 +94,14 @@ async def settings_back(query: CallbackQuery, session) -> None:
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
     await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))
+
+
+@router.callback_query(F.data == "settings:show")
+async def settings_show(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    await query.answer()
+    await query.message.answer(t(lang, "settings_title"), reply_markup=get_settings_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("reminder:add:"))
@@ -122,12 +130,11 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
         return
 
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await message.answer(t("en", "user_not_found"))
+        await message.answer(t(lang, "user_not_found"))
         await state.clear()
         return
-
-    lang = getattr(user, "language", "en")
     parsed = _parse_time_input(reminder_type, message.text)
     if parsed is None:
         prompt = (
@@ -159,11 +166,11 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
 async def remove_reminder(query: CallbackQuery, session) -> None:
     reminder_type = query.data.split(":", 2)[2]
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    lang = getattr(user, "language", "en")
     reminder = await session.scalar(
         select(Reminder).filter_by(user_id=user.id, type=reminder_type, is_active=True)
     )

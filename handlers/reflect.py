@@ -1,0 +1,44 @@
+from datetime import datetime, timedelta, timezone
+
+from aiogram import Bot, F, Router
+from aiogram.types import CallbackQuery
+from aiogram.utils.chat_action import ChatActionSender
+from sqlalchemy import select
+
+from ai import ask_reflect_analysis
+from db.models import User, Win
+from keyboards import get_main_menu_keyboard
+from locales import t
+
+router = Router()
+
+
+@router.callback_query(F.data == "menu:reflect")
+async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
+        return
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    wins = (await session.scalars(
+        select(Win).filter(Win.user_id == user.id, Win.created_at >= cutoff).order_by(Win.created_at)
+    )).all()
+
+    if not wins:
+        await query.answer()
+        await query.message.answer(t(lang, "reflect_no_wins"), reply_markup=get_main_menu_keyboard(lang))
+        return
+
+    await query.answer()
+    await query.message.answer(t(lang, "reflect_analysing"))
+
+    try:
+        wins_with_tags = [(win.raw_text, win.tag or "other") for win in wins]
+        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+            analysis = await ask_reflect_analysis(user.tone, wins_with_tags, lang)
+    except Exception:
+        analysis = t(lang, "reflect_error")
+
+    await query.message.answer(analysis, reply_markup=get_main_menu_keyboard(lang))

@@ -27,6 +27,7 @@ class Win(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     raw_text = Column(Text, nullable=False)
     processed_text = Column(Text, nullable=False)
+    tag = Column(String(50), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="wins")

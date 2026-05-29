@@ -20,7 +20,7 @@ def get_stats_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
          InlineKeyboardButton(text=t(lang, "btn_this_month"), callback_data="stats:month")],
         [InlineKeyboardButton(text=t(lang, "btn_all_time"), callback_data="stats:all"),
          InlineKeyboardButton(text=t(lang, "btn_compare"), callback_data="stats:compare")],
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="stats:back")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="main:back")],
     ])
 
 
@@ -74,8 +74,8 @@ def _get_period_range(period_key: str) -> tuple[datetime, datetime]:
         raise ValueError("Unknown period key")
 
     return (
-        datetime.combine(start_date, datetime.min.time()),
-        datetime.combine(end_date, datetime.min.time()),
+        datetime.combine(start_date, datetime.min.time(), tzinfo=timezone.utc),
+        datetime.combine(end_date, datetime.min.time(), tzinfo=timezone.utc),
     )
 
 
@@ -201,15 +201,14 @@ async def back_to_stats(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data == "stats:week")
 async def show_this_week(query: CallbackQuery, session) -> None:
     user, wins = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
     lang = getattr(user, "language", "en")
     start, end = _get_period_range("this_week")
     filtered = [win for win in wins if start <= win.created_at < end]
-    total = len(filtered)
-    active = len({win.created_at.date() for win in filtered})
     await query.answer()
     await query.message.answer(
         _build_period_report(t(lang, "period_this_week"), filtered, 7, lang),
@@ -220,11 +219,11 @@ async def show_this_week(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data == "stats:month")
 async def show_this_month(query: CallbackQuery, session) -> None:
     user, wins = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    lang = getattr(user, "language", "en")
     start, end = _get_period_range("this_month")
     filtered = [win for win in wins if start <= win.created_at < end]
     days_in_month = calendar.monthrange(start.year, start.month)[1]
@@ -239,11 +238,11 @@ async def show_this_month(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data == "stats:all")
 async def show_all_time(query: CallbackQuery, session) -> None:
     user, wins = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    lang = getattr(user, "language", "en")
     await query.answer()
     await query.message.answer(_build_all_time_report(wins, lang), reply_markup=get_back_to_stats_keyboard(lang))
 
@@ -251,11 +250,11 @@ async def show_all_time(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data == "stats:compare")
 async def start_compare(query: CallbackQuery, state: FSMContext, session) -> None:
     user, _ = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    lang = getattr(user, "language", "en")
     await state.set_state(CompareStates.choosing_first)
     await query.answer()
     await query.message.answer(t(lang, "choose_first_period_prompt"), reply_markup=get_compare_keyboard(lang))

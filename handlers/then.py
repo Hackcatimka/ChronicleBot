@@ -1,9 +1,10 @@
 import random
 from datetime import datetime, timedelta, timezone
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import select
 
 from ai import ask_reflect
@@ -56,13 +57,13 @@ async def _select_random_old_win(session, query: CallbackQuery, exclude_id: int 
 
 
 @router.callback_query(F.data == "menu:time_machine")
-async def show_time_machine(query: CallbackQuery, state: FSMContext, session) -> None:
+async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
     user, ids = await _get_user_and_old_win_ids(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    lang = getattr(user, "language", "en")
     if not ids:
         await query.answer()
         await query.message.answer(
@@ -84,19 +85,25 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session) ->
         t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago),
         reply_markup=get_time_machine_keyboard(lang),
     )
+    try:
+        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+            reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
+        await query.message.answer(reflection)
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "then:another")
-async def show_another(query: CallbackQuery, state: FSMContext, session) -> None:
+async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
     data = await state.get_data()
     last_win_id = data.get("last_win_id")
     user, win, ids = await _select_random_old_win(session, query, exclude_id=last_win_id)
+    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await query.answer(t("en", "user_not_found"), show_alert=True)
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
         await state.clear()
         return
 
-    lang = getattr(user, "language", "en")
     if win is None:
         await query.answer()
         await query.message.answer(
@@ -112,10 +119,18 @@ async def show_another(query: CallbackQuery, state: FSMContext, session) -> None
         t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago),
         reply_markup=get_time_machine_keyboard(lang),
     )
+    try:
+        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+            reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
+        await query.message.answer(reflection)
+    except Exception:
+        pass
 
 
 @router.callback_query(F.data == "then:back")
-async def time_machine_back(query: CallbackQuery, state: FSMContext) -> None:
+async def time_machine_back(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
     await state.clear()
     await query.answer()
-    await query.message.answer(t("en", "main_menu"), reply_markup=get_main_menu_keyboard("en"))
+    await query.message.answer(t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))

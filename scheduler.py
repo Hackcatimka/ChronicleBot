@@ -41,9 +41,10 @@ async def _send_weekly_digest(user: User, session) -> str:
 
     if wins:
         try:
-            return await ask_weekly_narrative(user.tone, [win.raw_text for win in wins], user.language)
+            wins_with_tags = [(win.raw_text, win.tag or "other") for win in wins]
+            return await ask_weekly_narrative(user.tone, wins_with_tags, user.language)
         except Exception:
-            pass
+            logger.exception("Failed to generate AI weekly narrative for user %s", user.id)
 
     lang = getattr(user, "language", "en")
     lines = [

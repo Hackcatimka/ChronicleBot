@@ -3,11 +3,23 @@ TEXTS = {
         "choose_language": "Choose your language:",
         "language_english": "🇬🇧 English",
         "language_russian": "🇷🇺 Русский",
-        "choose_tone": "Hey! I'm Leap — I'll remember your wins and show you how far you've come.\n\nHow should I talk to you?",
+        "choose_tone": (
+            "Almost done! One last thing — how should I talk to you?\n\n"
+            "👋 <b>Friend</b>\n"
+            "Warm and casual. Celebrates your wins with you, cheers you on, "
+            "keeps things light and encouraging.\n\n"
+            "💪 <b>Coach</b>\n"
+            "Direct and motivating. Pushes you to reflect — what made this possible? "
+            "What's next? Focused on growth.\n\n"
+            "🪞 <b>Mirror</b>\n"
+            "Neutral and factual. Just reflects your progress back to you. "
+            "No hype, no commentary — only what's there.\n\n"
+            "You can change this later in Settings."
+        ),
         "tone_selected": "Got it — I'll be your {tone}.\n\nNow just write me anything that went well today. Or tap a button below.",
         "welcome_back": "Welcome back, {name} 👋",
 
-        "main_menu": "What do you want to do?",
+        "main_menu": "What happened today? Just write.",
         "btn_record_win": "🏆 Record a win",
         "btn_goals": "🎯 My goals",
         "btn_reflect": "🔮 What changed",
@@ -15,6 +27,10 @@ TEXTS = {
         "btn_time_machine": "⏪ Time machine",
         "btn_settings": "⚙️ Settings",
 
+        "intent_goal_question": "Looks like a goal 🎯 — want to add it or save as a win?",
+        "btn_add_as_goal": "🎯 Add as goal",
+        "btn_save_as_win": "🏆 Save as win",
+        "goal_saved_quick": "🎯 Goal added: \"{title}\"\n\nYou can set a deadline and category in Goals.",
         "win_received": "Got it:\n\n{text}\n\nSave this as a win?",
         "btn_save": "✅ Save",
         "btn_link_goal": "🎯 Link to goal",
@@ -25,6 +41,7 @@ TEXTS = {
         "win_record_prompt": "Tell me what went well. Big or small — everything counts. 🏆",
         "no_text_to_save": "No text to save.",
         "user_not_found": "Use /start first.",
+        "rate_limited": "You're sending messages too fast. Please wait a moment.",
         "choose_goal_for_win": "Choose a goal for this win:",
         "win_linked": "Win linked to a goal.",
 
@@ -135,16 +152,45 @@ TEXTS = {
         "goal_abandoned": "Goal abandoned.",
         "goal_abandon_cancelled": "Abandon cancelled.",
         "goal_not_found": "Goal not found.",
+
+        "btn_analyse_goal": "🤖 Analyse progress",
+        "goal_analysing": "Analysing your progress...",
+        "goal_analysis_error": "Couldn't generate analysis right now. Try again later.",
+
+        "reflect_analysing": "Looking at your last 30 days...",
+        "reflect_no_wins": "No wins in the last 30 days yet. Write a few first — then come back here.",
+        "reflect_error": "Couldn't generate reflection right now. Try again later.",
+
+        "tag_work": "💼 Work",
+        "tag_health": "💪 Health",
+        "tag_learning": "📚 Learning",
+        "tag_personal": "🌟 Personal",
+        "tag_creative": "🎨 Creative",
+        "tag_social": "🤝 Social",
+        "tag_finance": "💰 Finance",
+        "tag_other": "✨ Other",
     },
     "ru": {
         "choose_language": "Выбери язык:",
         "language_english": "🇬🇧 English",
         "language_russian": "🇷🇺 Русский",
-        "choose_tone": "Привет! Я Leap — буду запоминать твои победы и показывать как ты растёшь.\n\nКак мне с тобой общаться?",
+        "choose_tone": (
+            "Почти готово! Последний шаг — как мне с тобой общаться?\n\n"
+            "👋 <b>Друг</b>\n"
+            "Тепло и неформально. Праздную победы вместе с тобой, подбадриваю, "
+            "держу тон лёгким и поддерживающим.\n\n"
+            "💪 <b>Коуч</b>\n"
+            "Конкретно и мотивирующе. Задаю вопросы — что помогло? что дальше? "
+            "Фокус на росте и движении вперёд.\n\n"
+            "🪞 <b>Зеркало</b>\n"
+            "Нейтрально и по фактам. Просто отражаю твой прогресс. "
+            "Без лишних слов — только то, что есть.\n\n"
+            "Это можно изменить в Настройках."
+        ),
         "tone_selected": "Отлично, буду твоим {tone}.\n\nПросто напиши что пошло хорошо сегодня. Или нажми кнопку.",
         "welcome_back": "С возвращением, {name} 👋",
 
-        "main_menu": "Что будем делать?",
+        "main_menu": "Что произошло сегодня? Просто напиши.",
         "btn_record_win": "🏆 Записать победу",
         "btn_goals": "🎯 Мои цели",
         "btn_reflect": "🔮 Что изменилось",
@@ -152,6 +198,10 @@ TEXTS = {
         "btn_time_machine": "⏪ Машина времени",
         "btn_settings": "⚙️ Настройки",
 
+        "intent_goal_question": "Похоже на цель 🎯 — добавить как цель или сохранить как победу?",
+        "btn_add_as_goal": "🎯 Добавить как цель",
+        "btn_save_as_win": "🏆 Сохранить как победу",
+        "goal_saved_quick": "🎯 Цель добавлена: \"{title}\"\n\nДедлайн и категорию можно задать в разделе Цели.",
         "win_received": "Вот что я получил:\n\n{text}\n\nСохранить как победу?",
         "btn_save": "✅ Сохранить",
         "btn_link_goal": "🎯 Привязать к цели",
@@ -162,6 +212,7 @@ TEXTS = {
         "win_record_prompt": "Расскажи что пошло хорошо. Большое или маленькое — всё считается. 🏆",
         "no_text_to_save": "Нет текста для сохранения.",
         "user_not_found": "Начни с /start.",
+        "rate_limited": "Слишком много сообщений подряд. Подожди немного.",
         "choose_goal_for_win": "Выбери цель для этой победы:",
         "win_linked": "Победа привязана к цели.",
 
@@ -271,6 +322,23 @@ TEXTS = {
         "goal_abandoned": "Цель отменена.",
         "goal_abandon_cancelled": "Отказ от отмены.",
         "goal_not_found": "Цель не найдена.",
+
+        "btn_analyse_goal": "🤖 Анализ прогресса",
+        "goal_analysing": "Анализирую прогресс...",
+        "goal_analysis_error": "Не удалось сгенерировать анализ. Попробуй позже.",
+
+        "reflect_analysing": "Смотрю на твои последние 30 дней...",
+        "reflect_no_wins": "За последние 30 дней побед ещё нет. Запиши несколько — потом возвращайся.",
+        "reflect_error": "Не удалось сгенерировать рефлексию. Попробуй позже.",
+
+        "tag_work": "💼 Работа",
+        "tag_health": "💪 Здоровье",
+        "tag_learning": "📚 Учёба",
+        "tag_personal": "🌟 Личное",
+        "tag_creative": "🎨 Творчество",
+        "tag_social": "🤝 Общение",
+        "tag_finance": "💰 Финансы",
+        "tag_other": "✨ Другое",
     },
 }
 
