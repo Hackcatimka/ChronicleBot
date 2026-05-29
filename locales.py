@@ -161,6 +161,13 @@ TEXTS = {
         "reflect_no_wins": "No wins in the last 30 days yet. Write a few first — then come back here.",
         "reflect_error": "Couldn't generate reflection right now. Try again later.",
 
+        "onboarding_timezone_prompt": (
+            "Last step — what's your UTC offset?\n\n"
+            "This is needed for reminders to arrive at the right time.\n\n"
+            "Examples: <b>+3</b> Moscow · <b>+1</b> Berlin · <b>0</b> London · <b>-5</b> New York\n\n"
+            "Just type a number like <b>+3</b> or <b>-5</b>:"
+        ),
+        "onboarding_timezone_saved": "Got it — UTC{offset}. You're all set!\n\nNow just write me what went well today. Or tap a button below.",
         "btn_set_timezone": "🕐 Timezone",
         "timezone_prompt": "Enter your UTC offset — e.g. +3 for Moscow, +1 for Berlin, 0 for London, -5 for New York.\n\nCurrent: UTC{offset}",
         "timezone_invalid": "Invalid format. Use +3, -5, 0, etc.",
@@ -346,6 +353,13 @@ TEXTS = {
         "reflect_no_wins": "За последние 30 дней побед ещё нет. Запиши несколько — потом возвращайся.",
         "reflect_error": "Не удалось сгенерировать рефлексию. Попробуй позже.",
 
+        "onboarding_timezone_prompt": (
+            "Последний шаг — какое у тебя смещение от UTC?\n\n"
+            "Это нужно чтобы напоминания приходили в нужное время.\n\n"
+            "Примеры: <b>+3</b> Москва · <b>+2</b> Киев · <b>+1</b> Берлин · <b>0</b> Лондон\n\n"
+            "Просто напиши число, например <b>+3</b> или <b>-5</b>:"
+        ),
+        "onboarding_timezone_saved": "Отлично — UTC{offset}. Всё готово!\n\nТеперь просто напиши что пошло хорошо сегодня. Или нажми кнопку ниже.",
         "btn_set_timezone": "🕐 Часовой пояс",
         "timezone_prompt": "Введи смещение от UTC — например +3 для Москвы, +1 для Берлина, 0 для Лондона, -5 для Нью-Йорка.\n\nСейчас: UTC{offset}",
         "timezone_invalid": "Неверный формат. Используй +3, -5, 0 и т.д.",

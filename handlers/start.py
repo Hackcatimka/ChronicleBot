@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
 
 from aiogram import F, Router
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import select
 
@@ -11,18 +13,26 @@ from locales import t
 
 router = Router()
 
+
+class OnboardingStates(StatesGroup):
+    waiting_for_timezone = State()
+
+
 _WELCOME_NEW = (
     "👋 Hi! / Привет!\n\n"
     "I'm <b>Chronicle</b> — your personal wins journal.\n"
     "Я <b>Chronicle</b> — твой личный дневник побед.\n\n"
-    "Every day you do things worth remembering — at work, at home, for yourself. "
-    "Most of it gets forgotten.\n"
-    "Каждый день ты делаешь что-то стоящее — на работе, дома, для себя. "
-    "Большинство из этого забывается.\n\n"
-    "Chronicle fixes that. Just write what went well — big or small. "
-    "I'll save your wins, track your goals, and show how far you've come.\n"
-    "Chronicle это меняет. Просто пиши что пошло хорошо — большое или маленькое. "
-    "Я сохраню победы, прослежу за целями и покажу как далеко ты зашёл.\n\n"
+    "Every day you do something worth remembering. Most of it gets forgotten.\n"
+    "Каждый день ты делаешь что-то стоящее. Большинство из этого забывается.\n\n"
+    "Just write what went well — big or small. Chronicle saves your wins, "
+    "tracks your goals, and reflects your progress back to you with AI.\n"
+    "Просто пиши что пошло хорошо. Chronicle сохранит победы, "
+    "проследит за целями и отразит твой прогресс через ИИ.\n\n"
+    "✨ AI reaction after every win\n"
+    "🎯 Goals with linked wins and progress analysis\n"
+    "🔮 30-day reflection — what you're becoming\n"
+    "⏪ Time machine — revisit your past wins\n"
+    "📊 Stats, streaks, and reminders\n\n"
     "Choose your language / Выбери язык 👇"
 )
 
@@ -51,10 +61,11 @@ async def main_back(query: CallbackQuery, session) -> None:
 
 
 @router.callback_query(F.data.startswith("lang:"))
-async def language_callback(query: CallbackQuery, session) -> None:
+async def language_callback(query: CallbackQuery, state: FSMContext, session) -> None:
     lang = query.data.split(":", 1)[1]
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
 
+    is_new_user = user is None
     if user is None:
         user = User(
             tg_id=query.from_user.id,
@@ -69,12 +80,14 @@ async def language_callback(query: CallbackQuery, session) -> None:
         session.add(user)
 
     await session.commit()
+    if is_new_user:
+        await state.update_data(onboarding=True)
     await query.answer()
     await query.message.answer(t(lang, "choose_tone"), reply_markup=get_tone_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("tone:"))
-async def tone_callback(query: CallbackQuery, session) -> None:
+async def tone_callback(query: CallbackQuery, state: FSMContext, session) -> None:
     tone = query.data.split(":", 1)[1]
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
 
@@ -94,8 +107,42 @@ async def tone_callback(query: CallbackQuery, session) -> None:
         session.add(user)
 
     await session.commit()
+    data = await state.get_data()
     await query.answer()
-    await query.message.answer(
-        t(lang, "tone_selected", tone=t(lang, f"tone_{tone}")),
+
+    if data.get("onboarding"):
+        await state.set_state(OnboardingStates.waiting_for_timezone)
+        await query.message.answer(t(lang, "onboarding_timezone_prompt"))
+    else:
+        await state.clear()
+        await query.message.answer(
+            t(lang, "tone_selected", tone=t(lang, f"tone_{tone}")),
+            reply_markup=get_main_menu_keyboard(lang),
+        )
+
+
+@router.message(StateFilter(OnboardingStates.waiting_for_timezone), F.text)
+async def onboarding_timezone(message: Message, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+
+    text = message.text.strip()
+    try:
+        offset = int(text.replace(" ", ""))
+        if not (-12 <= offset <= 14):
+            raise ValueError
+    except ValueError:
+        await message.answer(t(lang, "timezone_invalid"))
+        return
+
+    if user:
+        user.utc_offset = offset
+        session.add(user)
+        await session.commit()
+
+    offset_str = f"+{offset}" if offset >= 0 else str(offset)
+    await state.clear()
+    await message.answer(
+        t(lang, "onboarding_timezone_saved", offset=offset_str),
         reply_markup=get_main_menu_keyboard(lang),
     )
