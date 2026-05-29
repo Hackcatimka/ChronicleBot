@@ -148,8 +148,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             praise = await ask_praise(user.tone, raw_text, count, lang)
         await query.message.answer(f"{praise}\n\n{tag_label}")
-    except Exception as e:
-        await query.message.answer(f"[DEBUG AI error]: {e}")
+    except Exception:
         tone_reply = {
             "friend": t(lang, "tone_reply_friend", count=count),
             "coach": t(lang, "tone_reply_coach", count=count),
