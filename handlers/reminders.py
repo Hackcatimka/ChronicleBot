@@ -170,6 +170,9 @@ async def show_language_settings(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data.startswith("settings:lang:"))
 async def change_language(query: CallbackQuery, session) -> None:
     new_lang = query.data.split(":", 2)[2]
+    if new_lang not in {"en", "ru"}:
+        await query.answer()
+        return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     if user is None:
         await query.answer()
@@ -212,8 +215,14 @@ async def delete_data_confirmed(query: CallbackQuery, session) -> None:
     if user is None:
         await query.answer()
         return
+    reminders_to_cancel = (await session.scalars(
+        select(Reminder).filter_by(user_id=user.id, is_active=True)
+    )).all()
+    for reminder in reminders_to_cancel:
+        remove_reminder_job(reminder.id)
     await session.execute(delete(Win).where(Win.user_id == user.id))
     await session.execute(delete(Goal).where(Goal.user_id == user.id))
+    await session.execute(delete(Reminder).where(Reminder.user_id == user.id))
     await session.commit()
     await query.answer()
     await query.message.answer(t(lang, "delete_done"), reply_markup=get_settings_keyboard(lang))
@@ -222,6 +231,9 @@ async def delete_data_confirmed(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data.startswith("reminder:add:"))
 async def add_reminder(query: CallbackQuery, state: FSMContext, session) -> None:
     reminder_type = query.data.split(":", 2)[2]
+    if reminder_type not in {"morning", "evening", "weekly"}:
+        await query.answer()
+        return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await state.update_data(reminder_type=reminder_type)

@@ -11,6 +11,7 @@ from ai import ask_reflect
 from db.models import User, Win
 from keyboards import get_main_menu_keyboard
 from locales import t
+from ratelimit import check as rate_check
 
 router = Router()
 
@@ -38,8 +39,8 @@ async def _get_user_and_old_win_ids(query: CallbackQuery, session):
     return user, ids.all()
 
 
-async def _fetch_win_by_id(session, win_id: int):
-    return await session.scalar(select(Win).filter_by(id=win_id))
+async def _fetch_win_by_id(session, win_id: int, user_id: int):
+    return await session.scalar(select(Win).filter_by(id=win_id, user_id=user_id))
 
 
 async def _select_random_old_win(session, query: CallbackQuery, exclude_id: int | None = None):
@@ -52,12 +53,15 @@ async def _select_random_old_win(session, query: CallbackQuery, exclude_id: int 
         return user, None, ids
 
     selected_id = random.choice(available_ids)
-    win = await _fetch_win_by_id(session, selected_id)
+    win = await _fetch_win_by_id(session, selected_id, user.id)
     return user, win, ids
 
 
 @router.callback_query(F.data == "menu:time_machine")
 async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
+    if not rate_check(query.from_user.id):
+        await query.answer(t("en", "rate_limited"), show_alert=True)
+        return
     user, ids = await _get_user_and_old_win_ids(query, session)
     lang = getattr(user, "language", "en") if user else "en"
     if user is None:
@@ -73,7 +77,7 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
         return
 
     win_id = random.choice(ids)
-    win = await _fetch_win_by_id(session, win_id)
+    win = await _fetch_win_by_id(session, win_id, user.id)
     if win is None:
         await query.answer(t(lang, "goal_not_found"), show_alert=True)
         return
@@ -95,6 +99,9 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
 
 @router.callback_query(F.data == "then:another")
 async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
+    if not rate_check(query.from_user.id):
+        await query.answer(t("en", "rate_limited"), show_alert=True)
+        return
     data = await state.get_data()
     last_win_id = data.get("last_win_id")
     user, win, ids = await _select_random_old_win(session, query, exclude_id=last_win_id)

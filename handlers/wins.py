@@ -13,6 +13,7 @@ from ai import ask_praise, classify_intent, classify_tag
 from ratelimit import check as rate_check
 
 _saving_users: set[int] = set()
+_MAX_INPUT_LEN = 2000
 from db.models import Goal, User, Win, WinGoal
 from keyboards import get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
@@ -44,6 +45,9 @@ async def request_win_text(message: Message, state: FSMContext, session, bot: Bo
 
     if not rate_check(message.from_user.id):
         await message.answer(t(lang, "rate_limited"))
+        return
+    if len(message.text) > _MAX_INPUT_LEN:
+        await message.answer(t(lang, "input_too_long"))
         return
 
     user.last_active_at = datetime.now(timezone.utc)
@@ -109,7 +113,7 @@ async def intent_as_goal(query: CallbackQuery, state: FSMContext, session) -> No
     )
 
 
-@router.callback_query(F.data == "save_win")
+@router.callback_query(F.data == "save_win", StateFilter(WinStates.waiting_for_confirmation))
 async def save_win(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
     uid = query.from_user.id
     if uid in _saving_users:
@@ -162,7 +166,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
     await state.clear()
 
 
-@router.callback_query(F.data == "edit_win")
+@router.callback_query(F.data == "edit_win", StateFilter(WinStates.waiting_for_confirmation))
 async def edit_win(query: CallbackQuery, state: FSMContext, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
@@ -171,7 +175,7 @@ async def edit_win(query: CallbackQuery, state: FSMContext, session) -> None:
     await query.message.answer(t(lang, "win_edit_prompt"))
 
 
-@router.callback_query(F.data == "cancel_win")
+@router.callback_query(F.data == "cancel_win", StateFilter(WinStates.waiting_for_confirmation))
 async def cancel_win(query: CallbackQuery, state: FSMContext, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
@@ -180,7 +184,7 @@ async def cancel_win(query: CallbackQuery, state: FSMContext, session) -> None:
     await query.message.answer(t(lang, "win_cancelled"), reply_markup=get_main_menu_keyboard(lang))
 
 
-@router.callback_query(F.data == "link_goal")
+@router.callback_query(F.data == "link_goal", StateFilter(WinStates.waiting_for_confirmation))
 async def link_goal(query: CallbackQuery, state: FSMContext, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
@@ -221,7 +225,11 @@ async def link_goal(query: CallbackQuery, state: FSMContext, session) -> None:
 
 @router.callback_query(F.data.startswith("win:link:"), StateFilter(WinStates.waiting_for_goal))
 async def link_win_to_goal(query: CallbackQuery, state: FSMContext, session) -> None:
-    goal_id = int(query.data.split(":", 2)[2])
+    try:
+        goal_id = int(query.data.split(":", 2)[2])
+    except ValueError:
+        await query.answer()
+        return
     data = await state.get_data()
     win_id = data.get("win_id")
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))

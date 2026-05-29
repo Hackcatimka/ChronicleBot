@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 
 from aiogram import Bot, F, Router
 from ai import ask_goal_progress
+from ratelimit import check as rate_check
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -22,6 +23,8 @@ from keyboards import (
 from locales import t
 
 router = Router()
+_MAX_TEXT_LEN = 2000
+_VALID_CATEGORIES = {"Career", "Learning", "Health", "Personal", "Other", "Skip"}
 
 
 class AddGoalStates(StatesGroup):
@@ -84,6 +87,9 @@ async def add_goal_start(query: CallbackQuery, state: FSMContext, session) -> No
 async def add_goal_title(message: Message, state: FSMContext, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    if len(message.text) > _MAX_TEXT_LEN:
+        await message.answer(t(lang, "input_too_long"))
+        return
     await state.update_data(title=message.text.strip())
     await state.set_state(AddGoalStates.deadline)
     await message.answer(t(lang, "goal_deadline_prompt"))
@@ -124,6 +130,9 @@ async def _save_goal_from_state(user: User, state: FSMContext, session) -> Goal:
 @router.callback_query(F.data.startswith("goals:category:"))
 async def add_goal_category_button(query: CallbackQuery, state: FSMContext, session) -> None:
     category = query.data.split(":", 2)[2]
+    if category not in _VALID_CATEGORIES:
+        await query.answer()
+        return
     category_value = None if category == "Skip" else category
 
     await state.update_data(category=category_value)
@@ -152,6 +161,9 @@ async def add_goal_category_text(message: Message, state: FSMContext, session) -
     if user is None:
         await message.answer(t(lang, "user_not_found"))
         await state.clear()
+        return
+    if len(category_value) > 100:
+        await message.answer(t(lang, "input_too_long"))
         return
     if not category_value:
         await message.answer(t(lang, "goal_category_invalid"))
@@ -205,7 +217,11 @@ async def view_goal(query: CallbackQuery, session) -> None:
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    goal_id = int(query.data.split(":", 2)[2])
+    try:
+        goal_id = int(query.data.split(":", 2)[2])
+    except ValueError:
+        await query.answer()
+        return
     goal = await session.scalar(
         select(Goal).filter_by(id=goal_id, user_id=user.id, status="active")
         .options(selectinload(Goal.wins))
@@ -236,13 +252,20 @@ async def view_goal(query: CallbackQuery, session) -> None:
 
 @router.callback_query(F.data.startswith("goal:analyse:"))
 async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
+    if not rate_check(query.from_user.id):
+        await query.answer(t("en", "rate_limited"), show_alert=True)
+        return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     if user is None:
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    goal_id = int(query.data.split(":", 2)[2])
+    try:
+        goal_id = int(query.data.split(":", 2)[2])
+    except ValueError:
+        await query.answer()
+        return
     goal = await session.scalar(
         select(Goal).filter_by(id=goal_id, user_id=user.id)
         .options(selectinload(Goal.wins))
@@ -277,7 +300,11 @@ async def complete_goal(query: CallbackQuery, session) -> None:
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    goal_id = int(query.data.split(":", 2)[2])
+    try:
+        goal_id = int(query.data.split(":", 2)[2])
+    except ValueError:
+        await query.answer()
+        return
     goal = await session.scalar(select(Goal).filter_by(id=goal_id, user_id=user.id, status="active"))
     if goal is None:
         await query.answer(t(lang, "goal_not_found"), show_alert=True)
@@ -304,7 +331,11 @@ async def abandon_goal(query: CallbackQuery, session) -> None:
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    goal_id = int(query.data.split(":", 2)[2])
+    try:
+        goal_id = int(query.data.split(":", 2)[2])
+    except ValueError:
+        await query.answer()
+        return
     goal = await session.scalar(select(Goal).filter_by(id=goal_id, user_id=user.id, status="active"))
     if goal is None:
         await query.answer(t(lang, "goal_not_found"), show_alert=True)
@@ -325,7 +356,11 @@ async def confirm_abandon_goal(query: CallbackQuery, session) -> None:
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    goal_id = int(query.data.split(":", 3)[3])
+    try:
+        goal_id = int(query.data.split(":", 3)[3])
+    except ValueError:
+        await query.answer()
+        return
     goal = await session.scalar(select(Goal).filter_by(id=goal_id, user_id=user.id, status="active"))
     if goal is None:
         await query.answer(t(lang, "goal_not_found"), show_alert=True)
@@ -351,7 +386,11 @@ async def cancel_abandon_goal(query: CallbackQuery, session) -> None:
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    goal_id = int(query.data.split(":", 3)[3])
+    try:
+        goal_id = int(query.data.split(":", 3)[3])
+    except ValueError:
+        await query.answer()
+        return
     goal = await session.scalar(select(Goal).filter_by(id=goal_id, user_id=user.id, status="active"))
     if goal is None:
         await query.answer(t(lang, "goal_not_found"), show_alert=True)

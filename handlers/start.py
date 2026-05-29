@@ -1,3 +1,4 @@
+import html
 from datetime import datetime, timezone
 
 from aiogram import F, Router
@@ -48,7 +49,7 @@ async def start_handler(message: Message, session) -> None:
     user.last_active_at = datetime.now(timezone.utc)
     session.add(user)
     await session.commit()
-    await message.answer(t(lang, "welcome_back", name=user.name))
+    await message.answer(t(lang, "welcome_back", name=html.escape(user.name)))
     await message.answer(t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))
 
 
@@ -63,6 +64,9 @@ async def main_back(query: CallbackQuery, session) -> None:
 @router.callback_query(F.data.startswith("lang:"))
 async def language_callback(query: CallbackQuery, state: FSMContext, session) -> None:
     lang = query.data.split(":", 1)[1]
+    if lang not in {"en", "ru"}:
+        await query.answer()
+        return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
 
     is_new_user = user is None
@@ -89,6 +93,9 @@ async def language_callback(query: CallbackQuery, state: FSMContext, session) ->
 @router.callback_query(F.data.startswith("tone:"))
 async def tone_callback(query: CallbackQuery, state: FSMContext, session) -> None:
     tone = query.data.split(":", 1)[1]
+    if tone not in {"friend", "coach", "mirror"}:
+        await query.answer()
+        return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
 
     if user is None:

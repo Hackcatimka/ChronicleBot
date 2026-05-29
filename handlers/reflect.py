@@ -9,12 +9,16 @@ from ai import ask_reflect_analysis
 from db.models import User, Win
 from keyboards import get_main_menu_keyboard
 from locales import t
+from ratelimit import check as rate_check
 
 router = Router()
 
 
 @router.callback_query(F.data == "menu:reflect")
 async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
+    if not rate_check(query.from_user.id):
+        await query.answer(t("en", "rate_limited"), show_alert=True)
+        return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     if user is None:

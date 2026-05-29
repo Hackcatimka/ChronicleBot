@@ -42,6 +42,7 @@ TEXTS = {
         "no_text_to_save": "No text to save.",
         "user_not_found": "Use /start first.",
         "rate_limited": "You're sending messages too fast. Please wait a moment.",
+        "input_too_long": "Message is too long (max 2000 characters). Please shorten it.",
         "choose_goal_for_win": "Choose a goal for this win:",
         "win_linked": "Win linked to a goal.",
 
@@ -235,6 +236,7 @@ TEXTS = {
         "no_text_to_save": "Нет текста для сохранения.",
         "user_not_found": "Начни с /start.",
         "rate_limited": "Слишком много сообщений подряд. Подожди немного.",
+        "input_too_long": "Сообщение слишком длинное (макс. 2000 символов). Пожалуйста, сократи его.",
         "choose_goal_for_win": "Выбери цель для этой победы:",
         "win_linked": "Победа привязана к цели.",
 
