@@ -24,6 +24,7 @@ router = Router()
 
 class ReminderStates(StatesGroup):
     waiting_for_time = State()
+    waiting_for_timezone = State()
 
 
 def _parse_time_input(reminder_type: str, text: str) -> str | None:
@@ -109,6 +110,53 @@ async def settings_show(query: CallbackQuery, session) -> None:
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
     await query.message.answer(t(lang, "settings_title"), reply_markup=get_settings_keyboard(lang))
+
+
+@router.callback_query(F.data == "settings:timezone")
+async def show_timezone_settings(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
+        return
+    offset = getattr(user, "utc_offset", 0)
+    offset_str = f"+{offset}" if offset >= 0 else str(offset)
+    await state.set_state(ReminderStates.waiting_for_timezone)
+    await query.answer()
+    await query.message.answer(t(lang, "timezone_prompt", offset=offset_str))
+
+
+@router.message(StateFilter(ReminderStates.waiting_for_timezone), F.text)
+async def save_timezone(message: Message, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await message.answer(t(lang, "user_not_found"))
+        await state.clear()
+        return
+
+    text = message.text.strip()
+    try:
+        offset = int(text.replace(" ", ""))
+        if not (-12 <= offset <= 14):
+            raise ValueError
+    except ValueError:
+        await message.answer(t(lang, "timezone_invalid"))
+        return
+
+    user.utc_offset = offset
+    session.add(user)
+    await session.commit()
+
+    # reschedule all active reminders with new offset
+    reminders = await _get_user_reminders(user.id, session)
+    for reminder in reminders:
+        if reminder.is_active:
+            add_reminder_job(reminder, message.bot, offset)
+
+    offset_str = f"+{offset}" if offset >= 0 else str(offset)
+    await state.clear()
+    await message.answer(t(lang, "timezone_saved", offset=offset_str), reply_markup=get_settings_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:language")
@@ -222,7 +270,7 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
         session.add(reminder)
 
     await session.commit()
-    add_reminder_job(reminder, message.bot)
+    add_reminder_job(reminder, message.bot, getattr(user, "utc_offset", 0))
 
     reminders = await _get_user_reminders(user.id, session)
     await state.clear()

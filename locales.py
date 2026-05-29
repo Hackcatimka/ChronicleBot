@@ -161,6 +161,10 @@ TEXTS = {
         "reflect_no_wins": "No wins in the last 30 days yet. Write a few first — then come back here.",
         "reflect_error": "Couldn't generate reflection right now. Try again later.",
 
+        "btn_set_timezone": "🕐 Timezone",
+        "timezone_prompt": "Enter your UTC offset — e.g. +3 for Moscow, +1 for Berlin, 0 for London, -5 for New York.\n\nCurrent: UTC{offset}",
+        "timezone_invalid": "Invalid format. Use +3, -5, 0, etc.",
+        "timezone_saved": "Timezone saved: UTC{offset}. All reminders updated.",
         "btn_change_language": "🌐 Language",
         "btn_delete_data": "🗑 Delete all data",
         "settings_language_title": "Choose your language:",
@@ -342,6 +346,10 @@ TEXTS = {
         "reflect_no_wins": "За последние 30 дней побед ещё нет. Запиши несколько — потом возвращайся.",
         "reflect_error": "Не удалось сгенерировать рефлексию. Попробуй позже.",
 
+        "btn_set_timezone": "🕐 Часовой пояс",
+        "timezone_prompt": "Введи смещение от UTC — например +3 для Москвы, +1 для Берлина, 0 для Лондона, -5 для Нью-Йорка.\n\nСейчас: UTC{offset}",
+        "timezone_invalid": "Неверный формат. Используй +3, -5, 0 и т.д.",
+        "timezone_saved": "Часовой пояс сохранён: UTC{offset}. Все напоминания обновлены.",
         "btn_change_language": "🌐 Язык",
         "btn_delete_data": "🗑 Удалить все данные",
         "settings_language_title": "Выбери язык:",

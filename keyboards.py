@@ -91,7 +91,8 @@ def get_settings_keyboard(lang: str) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text=t(lang, "btn_reminders"), callback_data="settings:reminders"),
          InlineKeyboardButton(text=t(lang, "btn_change_tone"), callback_data="settings:tone")],
         [InlineKeyboardButton(text=t(lang, "btn_change_language"), callback_data="settings:language"),
-         InlineKeyboardButton(text=t(lang, "btn_delete_data"), callback_data="settings:delete")],
+         InlineKeyboardButton(text=t(lang, "btn_set_timezone"), callback_data="settings:timezone")],
+        [InlineKeyboardButton(text=t(lang, "btn_delete_data"), callback_data="settings:delete")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="settings:back")],
     ])
 

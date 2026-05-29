@@ -19,16 +19,25 @@ def _make_job_id(reminder_id: int) -> str:
     return f"reminder_{reminder_id}"
 
 
-def _build_trigger(reminder: Reminder) -> CronTrigger:
+def _build_trigger(reminder: Reminder, utc_offset: int = 0) -> CronTrigger:
     if reminder.type in {"morning", "evening"}:
         hour, minute = reminder.time.split(":")
-        return CronTrigger(hour=int(hour), minute=int(minute))
+        utc_hour = (int(hour) - utc_offset) % 24
+        return CronTrigger(hour=utc_hour, minute=int(minute), timezone="UTC")
 
     if reminder.type == "weekly":
         parts = reminder.time.split()
         day_part = parts[0].lower()
         hour, minute = parts[1].split(":")
-        return CronTrigger(day_of_week=day_part, hour=int(hour), minute=int(minute))
+        local_hour = int(hour)
+        utc_hour = (local_hour - utc_offset) % 24
+        # if offset shifts past midnight, day_of_week shifts too
+        day_shift = (local_hour - utc_offset) // 24
+        if day_shift != 0:
+            days = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+            idx = days.index(day_part[:3].lower())
+            day_part = days[(idx + day_shift) % 7]
+        return CronTrigger(day_of_week=day_part, hour=utc_hour, minute=int(minute), timezone="UTC")
 
     raise ValueError("Unknown reminder type")
 
@@ -63,6 +72,7 @@ async def _send_weekly_digest(user: User, session) -> str:
 
 
 async def _send_reminder(reminder_id: int, bot) -> None:
+    logger.info("Firing reminder %s", reminder_id)
     async with async_session() as session:
         reminder = await session.scalar(select(Reminder).filter_by(id=reminder_id, is_active=True))
         if reminder is None:
@@ -91,12 +101,13 @@ async def _send_reminder(reminder_id: int, bot) -> None:
             logger.exception("Failed to send reminder %s: %s", reminder_id, exc)
 
 
-def add_reminder_job(reminder: Reminder, bot) -> None:
+def add_reminder_job(reminder: Reminder, bot, utc_offset: int = 0) -> None:
     job_id = _make_job_id(reminder.id)
-    trigger = _build_trigger(reminder)
+    trigger = _build_trigger(reminder, utc_offset)
     if scheduler.get_job(job_id):
         scheduler.remove_job(job_id)
     scheduler.add_job(_send_reminder, trigger, args=[reminder.id, bot], id=job_id, replace_existing=True)
+    logger.info("Scheduled reminder %s type=%s time=%s utc_offset=%s", reminder.id, reminder.type, reminder.time, utc_offset)
 
 
 def remove_reminder_job(reminder_id: int) -> None:
@@ -111,5 +122,8 @@ async def init_scheduler(bot) -> None:
     async with async_session() as session:
         reminders = (await session.scalars(select(Reminder).filter_by(is_active=True))).all()
         for reminder in reminders:
-            add_reminder_job(reminder, bot)
+            user = await session.scalar(select(User).filter_by(id=reminder.user_id))
+            utc_offset = getattr(user, "utc_offset", 0) if user else 0
+            add_reminder_job(reminder, bot, utc_offset)
     scheduler.start()
+    logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))
