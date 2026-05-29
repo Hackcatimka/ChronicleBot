@@ -10,6 +10,7 @@ from sqlalchemy import select
 
 from db.models import User, Win
 from locales import t
+from utils import edit_or_answer
 
 router = Router()
 
@@ -187,7 +188,7 @@ async def show_stats_menu(query: CallbackQuery, session) -> None:
     user, _ = await _get_user_and_wins(query, session)
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "stats_title"), reply_markup=get_stats_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "stats_title"), get_stats_menu_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:back")
@@ -195,7 +196,7 @@ async def back_to_stats(query: CallbackQuery, session) -> None:
     user, _ = await _get_user_and_wins(query, session)
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "stats_title"), reply_markup=get_stats_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "stats_title"), get_stats_menu_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:week")
@@ -210,10 +211,7 @@ async def show_this_week(query: CallbackQuery, session) -> None:
     start, end = _get_period_range("this_week")
     filtered = [win for win in wins if start <= win.created_at < end]
     await query.answer()
-    await query.message.answer(
-        _build_period_report(t(lang, "period_this_week"), filtered, 7, lang),
-        reply_markup=get_back_to_stats_keyboard(lang),
-    )
+    await edit_or_answer(query.message, _build_period_report(t(lang, "period_this_week"), filtered, 7, lang), get_back_to_stats_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:month")
@@ -229,10 +227,7 @@ async def show_this_month(query: CallbackQuery, session) -> None:
     days_in_month = calendar.monthrange(start.year, start.month)[1]
     month_name = _month_name(start.month, lang)
     await query.answer()
-    await query.message.answer(
-        _build_period_report(f"{month_name} {start.year}", filtered, days_in_month, lang),
-        reply_markup=get_back_to_stats_keyboard(lang),
-    )
+    await edit_or_answer(query.message, _build_period_report(f"{month_name} {start.year}", filtered, days_in_month, lang), get_back_to_stats_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:all")
@@ -244,7 +239,7 @@ async def show_all_time(query: CallbackQuery, session) -> None:
         return
 
     await query.answer()
-    await query.message.answer(_build_all_time_report(wins, lang), reply_markup=get_back_to_stats_keyboard(lang))
+    await edit_or_answer(query.message, _build_all_time_report(wins, lang), get_back_to_stats_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:compare")
@@ -257,7 +252,7 @@ async def start_compare(query: CallbackQuery, state: FSMContext, session) -> Non
 
     await state.set_state(CompareStates.choosing_first)
     await query.answer()
-    await query.message.answer(t(lang, "choose_first_period_prompt"), reply_markup=get_compare_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "choose_first_period_prompt"), get_compare_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("compare:first:"), StateFilter(CompareStates.choosing_first))
@@ -268,7 +263,7 @@ async def choose_first_period(query: CallbackQuery, state: FSMContext, session) 
     user, _ = await _get_user_and_wins(query, session)
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "choose_second_period_prompt"), reply_markup=get_second_compare_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "choose_second_period_prompt"), get_second_compare_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("compare:second:"), StateFilter(CompareStates.choosing_second))
@@ -293,8 +288,5 @@ async def choose_second_period(query: CallbackQuery, state: FSMContext, session)
     second_stats = _get_wins_stats(wins, second_start, second_end)
 
     await query.answer()
-    await query.message.answer(
-        _format_compare_report(first_choice, second_choice, first_stats[:2], second_stats[:2], lang),
-        reply_markup=get_back_to_stats_keyboard(lang),
-    )
+    await edit_or_answer(query.message, _format_compare_report(first_choice, second_choice, first_stats[:2], second_stats[:2], lang), get_back_to_stats_keyboard(lang))
     await state.clear()

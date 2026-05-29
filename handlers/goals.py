@@ -21,6 +21,7 @@ from keyboards import (
     get_abandon_confirm_buttons,
 )
 from locales import t
+from utils import edit_or_answer
 
 router = Router()
 _MAX_TEXT_LEN = 2000
@@ -67,10 +68,7 @@ async def show_goals_menu(query: CallbackQuery, session) -> None:
 
     goals = await _get_active_goals(user.id, session)
     await query.answer()
-    await query.message.answer(
-        _render_goals_list(goals, lang),
-        reply_markup=get_goal_menu_keyboard(lang, bool(goals)),
-    )
+    await edit_or_answer(query.message, _render_goals_list(goals, lang), get_goal_menu_keyboard(lang, bool(goals)))
 
 
 @router.callback_query(F.data == "goals:add")
@@ -198,7 +196,7 @@ async def list_goals(query: CallbackQuery, session) -> None:
         return
 
     await query.answer()
-    await query.message.answer(t(lang, "goal_choose"), reply_markup=get_goal_list_keyboard(lang, goals))
+    await edit_or_answer(query.message, t(lang, "goal_choose"), get_goal_list_keyboard(lang, goals))
 
 
 @router.callback_query(F.data == "goals:back")
@@ -206,7 +204,7 @@ async def goals_back(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "back_to_menu"), get_main_menu_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("goal:view:"))
@@ -247,7 +245,7 @@ async def view_goal(query: CallbackQuery, session) -> None:
         lines.append(t(lang, "goal_view_no_wins"))
 
     await query.answer()
-    await query.message.answer("\n".join(lines), reply_markup=get_goal_detail_buttons(lang, goal.id))
+    await edit_or_answer(query.message, "\n".join(lines), get_goal_detail_buttons(lang, goal.id))
 
 
 @router.callback_query(F.data.startswith("goal:analyse:"))
@@ -342,10 +340,7 @@ async def abandon_goal(query: CallbackQuery, session) -> None:
         return
 
     await query.answer()
-    await query.message.answer(
-        t(lang, "goal_abandon_confirm"),
-        reply_markup=get_abandon_confirm_buttons(lang, goal_id),
-    )
+    await edit_or_answer(query.message, t(lang, "goal_abandon_confirm"), get_abandon_confirm_buttons(lang, goal_id))
 
 
 @router.callback_query(F.data.startswith("goal:abandon:confirm:"))

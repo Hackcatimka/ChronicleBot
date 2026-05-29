@@ -10,6 +10,7 @@ from sqlalchemy import delete, select
 from db.models import Goal, Reminder, User, Win
 from keyboards import (
     get_delete_confirm_keyboard,
+    get_language_keyboard,
     get_main_menu_keyboard,
     get_reminders_keyboard,
     get_settings_keyboard,
@@ -18,6 +19,7 @@ from keyboards import (
 )
 from locales import t
 from scheduler import add_reminder_job, remove_reminder_job
+from utils import edit_or_answer
 
 router = Router()
 
@@ -72,7 +74,7 @@ async def show_settings_menu(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "settings_title"), reply_markup=get_settings_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "settings_title"), get_settings_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:reminders")
@@ -85,7 +87,7 @@ async def show_reminders_menu(query: CallbackQuery, session) -> None:
 
     reminders = await _get_user_reminders(user.id, session)
     await query.answer()
-    await query.message.answer(t(lang, "reminders_title"), reply_markup=get_reminders_keyboard(lang, reminders))
+    await edit_or_answer(query.message, t(lang, "reminders_title"), get_reminders_keyboard(lang, reminders))
 
 
 @router.callback_query(F.data == "settings:tone")
@@ -101,7 +103,7 @@ async def settings_back(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "back_to_menu"), get_main_menu_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:show")
@@ -109,7 +111,7 @@ async def settings_show(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "settings_title"), reply_markup=get_settings_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "settings_title"), get_settings_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:timezone")
@@ -209,9 +211,9 @@ async def delete_data_step3(query: CallbackQuery, session) -> None:
 
 
 @router.callback_query(F.data == "settings:delete:3")
-async def delete_data_confirmed(query: CallbackQuery, session) -> None:
+async def delete_data_confirmed(query: CallbackQuery, state: FSMContext, session) -> None:
+    from handlers.start import _WELCOME_NEW
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
-    lang = getattr(user, "language", "en") if user else "en"
     if user is None:
         await query.answer()
         return
@@ -220,12 +222,11 @@ async def delete_data_confirmed(query: CallbackQuery, session) -> None:
     )).all()
     for reminder in reminders_to_cancel:
         remove_reminder_job(reminder.id)
-    await session.execute(delete(Win).where(Win.user_id == user.id))
-    await session.execute(delete(Goal).where(Goal.user_id == user.id))
-    await session.execute(delete(Reminder).where(Reminder.user_id == user.id))
+    await session.delete(user)
     await session.commit()
+    await state.clear()
     await query.answer()
-    await query.message.answer(t(lang, "delete_done"), reply_markup=get_settings_keyboard(lang))
+    await query.message.answer(_WELCOME_NEW, reply_markup=get_language_keyboard())
 
 
 @router.callback_query(F.data.startswith("reminder:add:"))

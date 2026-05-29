@@ -11,6 +11,7 @@ from sqlalchemy import select
 from db.models import User
 from keyboards import get_language_keyboard, get_main_menu_keyboard, get_tone_keyboard
 from locales import t
+from utils import edit_or_answer
 
 router = Router()
 
@@ -58,7 +59,7 @@ async def main_back(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "main_menu"), get_main_menu_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("lang:"))

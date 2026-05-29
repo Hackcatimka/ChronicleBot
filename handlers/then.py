@@ -12,6 +12,7 @@ from db.models import User, Win
 from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
+from utils import edit_or_answer
 
 router = Router()
 
@@ -140,4 +141,4 @@ async def time_machine_back(query: CallbackQuery, state: FSMContext, session) ->
     lang = getattr(user, "language", "en") if user else "en"
     await state.clear()
     await query.answer()
-    await query.message.answer(t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "main_menu"), get_main_menu_keyboard(lang))
