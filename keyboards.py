@@ -90,7 +90,24 @@ def get_settings_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(lang, "btn_reminders"), callback_data="settings:reminders"),
          InlineKeyboardButton(text=t(lang, "btn_change_tone"), callback_data="settings:tone")],
+        [InlineKeyboardButton(text=t(lang, "btn_change_language"), callback_data="settings:language"),
+         InlineKeyboardButton(text=t(lang, "btn_delete_data"), callback_data="settings:delete")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="settings:back")],
+    ])
+
+
+def get_settings_language_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t("en", "language_english"), callback_data="settings:lang:en"),
+         InlineKeyboardButton(text=t("en", "language_russian"), callback_data="settings:lang:ru")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="settings:show")],
+    ])
+
+
+def get_delete_confirm_keyboard(lang: str, step: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_delete_yes"), callback_data=f"settings:delete:{step}"),
+         InlineKeyboardButton(text=t(lang, "btn_delete_no"), callback_data="settings:show")],
     ])
 
 

@@ -5,10 +5,17 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
-from db.models import Reminder, User
-from keyboards import get_main_menu_keyboard, get_reminders_keyboard, get_settings_keyboard, get_tone_keyboard
+from db.models import Goal, Reminder, User, Win
+from keyboards import (
+    get_delete_confirm_keyboard,
+    get_main_menu_keyboard,
+    get_reminders_keyboard,
+    get_settings_keyboard,
+    get_settings_language_keyboard,
+    get_tone_keyboard,
+)
 from locales import t
 from scheduler import add_reminder_job, remove_reminder_job
 
@@ -102,6 +109,66 @@ async def settings_show(query: CallbackQuery, session) -> None:
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
     await query.message.answer(t(lang, "settings_title"), reply_markup=get_settings_keyboard(lang))
+
+
+@router.callback_query(F.data == "settings:language")
+async def show_language_settings(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    await query.answer()
+    await query.message.answer(t(lang, "settings_language_title"), reply_markup=get_settings_language_keyboard(lang))
+
+
+@router.callback_query(F.data.startswith("settings:lang:"))
+async def change_language(query: CallbackQuery, session) -> None:
+    new_lang = query.data.split(":", 2)[2]
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    if user is None:
+        await query.answer()
+        return
+    user.language = new_lang
+    session.add(user)
+    await session.commit()
+    await query.answer()
+    await query.message.answer(t(new_lang, "language_changed"), reply_markup=get_settings_keyboard(new_lang))
+
+
+@router.callback_query(F.data == "settings:delete")
+async def delete_data_step1(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    await query.answer()
+    await query.message.answer(t(lang, "delete_confirm_1"), reply_markup=get_delete_confirm_keyboard(lang, 1))
+
+
+@router.callback_query(F.data == "settings:delete:1")
+async def delete_data_step2(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    await query.answer()
+    await query.message.answer(t(lang, "delete_confirm_2"), reply_markup=get_delete_confirm_keyboard(lang, 2))
+
+
+@router.callback_query(F.data == "settings:delete:2")
+async def delete_data_step3(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    await query.answer()
+    await query.message.answer(t(lang, "delete_confirm_3"), reply_markup=get_delete_confirm_keyboard(lang, 3))
+
+
+@router.callback_query(F.data == "settings:delete:3")
+async def delete_data_confirmed(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer()
+        return
+    await session.execute(delete(Win).where(Win.user_id == user.id))
+    await session.execute(delete(Goal).where(Goal.user_id == user.id))
+    await session.commit()
+    await query.answer()
+    await query.message.answer(t(lang, "delete_done"), reply_markup=get_settings_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("reminder:add:"))
