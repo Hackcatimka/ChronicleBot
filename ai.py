@@ -1,6 +1,10 @@
+import logging
+
 from openai import AsyncOpenAI
 
 from config import settings
+
+logger = logging.getLogger(__name__)
 
 client = AsyncOpenAI(api_key=settings.XAI_API_KEY, base_url="https://api.x.ai/v1")
 MODEL = "grok-3-mini"
@@ -21,15 +25,19 @@ def _language_instruction(lang: str) -> str:
 
 
 async def _create_completion(system_prompt: str, user_prompt: str, max_tokens: int = 250) -> str:
-    response = await client.chat.completions.create(
-        model=MODEL,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        max_tokens=max_tokens,
-    )
-    return response.choices[0].message.content.strip()
+    try:
+        response = await client.chat.completions.create(
+            model=MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            max_tokens=max_tokens,
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        logger.error("xAI API error: %s", e, exc_info=True)
+        raise
 
 
 async def ask_praise(tone: str, win_text: str, count: int, lang: str) -> str:
