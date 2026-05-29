@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 client = AsyncOpenAI(api_key=settings.XAI_API_KEY, base_url="https://api.x.ai/v1")
 MODEL = "grok-3-mini"
 
+logger.info("xAI client initialized, key length=%d, model=%s", len(settings.XAI_API_KEY), MODEL)
+
 
 def _choose_style(tone: str) -> str:
     if tone == "friend":
