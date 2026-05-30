@@ -1,19 +1,21 @@
-# Chronicle Bot 🏆
+# Chronicle Bot
 
-Telegram bot that saves your wins, tracks your goals, and reflects your progress back to you with AI.
+Telegram bot that saves your moments, tracks your goals, and reflects your progress back to you with AI.
 
 ---
 
 ## Features
 
-- **Win recording** — just write what went well, AI reacts to the specific thing you did
-- **Goals** — create goals, link wins to them, get AI progress analysis
+- **Moment recording** — just write what went well, AI reacts to the specific thing you did
+- **Goals** — create goals, link moments to them, get AI progress analysis
 - **Reflect** — AI analysis of your last 30 days: patterns, strengths, what's next
-- **Time Machine** — revisit random past wins with AI reflection
+- **Time Machine** — revisit random past moments with AI reflection
 - **Stats** — this week, this month, all time, period comparison
 - **Reminders** — morning check-in, evening check-in, weekly digest with AI narrative
 - **Tones** — Friend, Coach, or Mirror — changes how the AI talks to you
+- **Stickers** — optional Catification mode: random sticker appears above each AI response
 - **Languages** — English and Russian
+- **Admin panel** — `/admin` command with period-based bot statistics (restricted)
 
 ---
 
@@ -41,17 +43,20 @@ chronicle/
 ├── locales.py            # All user-facing strings (en + ru)
 ├── ratelimit.py          # In-memory rate limiter
 ├── utils.py              # edit_or_answer / edit_stored helpers (one-message UI)
+├── dateparse.py          # Date extraction from free-form text (DD.MM.YYYY, Russian/English month names)
+├── stickers.py           # Sticker set loader and sender
 ├── db/
 │   ├── models.py         # SQLAlchemy models
 │   └── engine.py         # Async engine and session
 ├── handlers/
 │   ├── start.py          # /start, onboarding (language → tone → timezone)
-│   ├── wins.py           # Recording wins, linking to goals
+│   ├── wins.py           # Recording moments, linking to goals
 │   ├── goals.py          # Goals — create, view, complete, abandon
 │   ├── stats.py          # Stats and period comparison
 │   ├── reflect.py        # 30-day AI reflection
 │   ├── then.py           # Time machine
-│   └── reminders.py      # Reminders and settings
+│   ├── reminders.py      # Reminders and settings
+│   └── admin.py          # Admin panel (/admin, restricted by tg_id)
 ├── alembic/              # Database migrations
 └── requirements.txt
 ```
@@ -75,6 +80,7 @@ BOT_TOKEN=your_telegram_bot_token
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/chronicle
 GROQ_API_KEY=your_groq_api_key
 SENTRY_DSN=           # optional
+STICKER_SET_NAME=     # optional, defaults to catsunicmass
 ```
 
 **3. Run migrations and start**
@@ -101,10 +107,10 @@ Migrations run automatically on startup.
 
 | Table | Purpose |
 |---|---|
-| `users` | Telegram user, tone, language, UTC offset |
-| `wins` | Recorded wins with AI-classified tag |
+| `users` | Telegram user, tone, language, UTC offset, stickers toggle |
+| `wins` | Recorded moments with AI-classified tag |
 | `goals` | User goals with deadline, category, status |
-| `win_goals` | Many-to-many: wins linked to goals |
+| `win_goals` | Many-to-many: moments linked to goals |
 | `reminders` | Scheduled reminders per user |
 
 ---
@@ -117,6 +123,8 @@ Migrations run automatically on startup.
 | `DATABASE_URL` | PostgreSQL connection string |
 | `GROQ_API_KEY` | Groq API key (free at console.groq.com) |
 | `SENTRY_DSN` | Optional — Sentry error tracking |
+| `ENV` | Optional — environment label for Sentry (default: `production`) |
+| `STICKER_SET_NAME` | Optional — Telegram sticker set name (default: `catsunicmass`) |
 
 ---
 

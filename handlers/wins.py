@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime, timezone
 
 from aiogram import Bot, F, Router
@@ -23,6 +24,7 @@ from stickers import send_random_sticker
 from utils import edit_or_answer, try_delete
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 class WinStates(StatesGroup):
@@ -166,6 +168,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
             praise = await ask_praise(user.tone, raw_text, count, lang)
         result_text = f"{praise}\n\n{tag_label}"
     except Exception:
+        logger.warning("AI praise failed for user %s", user.id, exc_info=True)
         tone_reply = {
             "friend": t(lang, "tone_reply_friend", count=count),
             "coach": t(lang, "tone_reply_coach", count=count),

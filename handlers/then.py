@@ -1,3 +1,4 @@
+import logging
 import random
 from datetime import datetime, timedelta, timezone
 
@@ -17,6 +18,7 @@ from stickers import send_random_sticker
 from utils import edit_or_answer, try_delete
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 def get_time_machine_keyboard(lang: str) -> InlineKeyboardMarkup:
@@ -108,7 +110,7 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
         else:
             await edit_or_answer(msg, final_text, get_time_machine_keyboard(lang))
     except Exception:
-        pass
+        logger.warning("AI reflection failed for user %s win %s", user.id, win.id, exc_info=True)
 
 
 @router.callback_query(F.data == "then:another")
@@ -150,7 +152,7 @@ async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bo
         else:
             await edit_or_answer(msg, final_text, get_time_machine_keyboard(lang))
     except Exception:
-        pass
+        logger.warning("AI reflection failed for user %s win %s", user.id, win.id, exc_info=True)
 
 
 @router.callback_query(F.data == "then:back")

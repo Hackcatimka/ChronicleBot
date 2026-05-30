@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from aiogram import Bot, F, Router
@@ -26,6 +27,7 @@ from locales import t
 from utils import edit_or_answer, edit_stored, try_delete
 
 router = Router()
+logger = logging.getLogger(__name__)
 _MAX_TEXT_LEN = 2000
 _VALID_CATEGORIES = {"Career", "Learning", "Health", "Personal", "Other", "Skip"}
 
@@ -302,6 +304,7 @@ async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
                 user.tone, goal.title, wins_texts, days_elapsed, deadline_days, lang
             )
     except Exception:
+        logger.warning("AI goal analysis failed for user %s goal %s", user.id, goal_id, exc_info=True)
         analysis = t(lang, "goal_analysis_error")
 
     await edit_or_answer(msg, analysis, get_goal_detail_buttons(lang, goal_id))

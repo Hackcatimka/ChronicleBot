@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, F, Router
@@ -15,6 +16,7 @@ from stickers import send_random_sticker
 from utils import edit_or_answer, try_delete
 
 router = Router()
+logger = logging.getLogger(__name__)
 
 
 @router.callback_query(F.data == "menu:reflect")
@@ -46,6 +48,7 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             analysis = await ask_reflect_analysis(user.tone, wins_with_tags, lang)
     except Exception:
+        logger.warning("AI reflect analysis failed for user %s", user.id, exc_info=True)
         analysis = t(lang, "reflect_error")
 
     stickers_enabled = getattr(user, "stickers_enabled", True)
