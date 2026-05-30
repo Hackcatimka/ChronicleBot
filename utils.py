@@ -3,6 +3,13 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import InlineKeyboardMarkup, Message
 
 
+async def try_delete(message: Message) -> None:
+    try:
+        await message.delete()
+    except TelegramBadRequest:
+        pass
+
+
 async def edit_or_answer(message: Message, text: str, reply_markup: InlineKeyboardMarkup | None = None) -> Message:
     try:
         result = await message.edit_text(text, reply_markup=reply_markup)

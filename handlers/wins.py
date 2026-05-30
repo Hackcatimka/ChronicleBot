@@ -10,6 +10,7 @@ from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import func, select
 
 from ai import ask_praise, classify_intent, classify_tag
+from dateparse import extract_win_date
 from ratelimit import check as rate_check
 
 _saving_users: set[int] = set()
@@ -19,7 +20,7 @@ from db.models import Goal, User, Win, WinGoal
 from keyboards import get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
 from stickers import send_random_sticker
-from utils import edit_or_answer
+from utils import edit_or_answer, try_delete
 
 router = Router()
 
@@ -144,7 +145,12 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
         await query.answer(t(lang, "no_text_to_save"), show_alert=True)
         return
     tag = data.get("tag", "other")
+    today = datetime.now(timezone.utc).date()
+    win_date = extract_win_date(raw_text, today)
+    created_at = datetime(win_date.year, win_date.month, win_date.day, tzinfo=timezone.utc) if win_date else None
     win = Win(user_id=user.id, raw_text=raw_text, processed_text=raw_text, tag=tag)
+    if created_at:
+        win.created_at = created_at
     session.add(win)
     user.last_active_at = datetime.now(timezone.utc)
     session.add(user)
@@ -152,9 +158,11 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
 
     count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id))
     tag_label = t(lang, f"tag_{tag}")
+    stickers_enabled = getattr(user, "stickers_enabled", True)
+    chat_id = query.message.chat.id
     await query.answer()
     try:
-        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
             praise = await ask_praise(user.tone, raw_text, count, lang)
         result_text = f"{praise}\n\n{tag_label}"
     except Exception:
@@ -165,8 +173,12 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
         }
         result_text = tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)) + f"\n\n{tag_label}"
 
-    await edit_or_answer(query.message, result_text, get_main_menu_keyboard(lang))
-    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
+    if stickers_enabled:
+        await try_delete(query.message)
+        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await bot.send_message(chat_id, result_text, reply_markup=get_main_menu_keyboard(lang))
+    else:
+        await edit_or_answer(query.message, result_text, get_main_menu_keyboard(lang))
     await state.clear()
 
 

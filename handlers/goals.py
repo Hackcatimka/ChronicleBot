@@ -23,7 +23,7 @@ from keyboards import (
     get_abandon_confirm_buttons,
 )
 from locales import t
-from utils import edit_or_answer, edit_stored
+from utils import edit_or_answer, edit_stored, try_delete
 
 router = Router()
 _MAX_TEXT_LEN = 2000
@@ -330,9 +330,15 @@ async def complete_goal(query: CallbackQuery, session, bot: Bot) -> None:
     days = (datetime.now(timezone.utc).date() - goal.created_at.date()).days
     goals = await _get_active_goals(user.id, session)
     combined = f"{t(lang, 'goal_done', title=goal.title, days=days)}\n\n{_render_goals_list(goals, lang)}"
+    stickers_enabled = getattr(user, "stickers_enabled", True)
+    chat_id = query.message.chat.id
     await query.answer()
-    await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))
-    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
+    if stickers_enabled:
+        await try_delete(query.message)
+        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await bot.send_message(chat_id, combined, reply_markup=get_goal_menu_keyboard(lang, bool(goals)))
+    else:
+        await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))
 
 
 @router.callback_query(F.data.startswith("goal:abandon:"))

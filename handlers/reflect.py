@@ -12,7 +12,7 @@ from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
 from stickers import send_random_sticker
-from utils import edit_or_answer
+from utils import edit_or_answer, try_delete
 
 router = Router()
 
@@ -48,5 +48,11 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
     except Exception:
         analysis = t(lang, "reflect_error")
 
-    await edit_or_answer(msg, analysis, get_main_menu_keyboard(lang))
-    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
+    stickers_enabled = getattr(user, "stickers_enabled", True)
+    chat_id = query.message.chat.id
+    if stickers_enabled:
+        await try_delete(msg)
+        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await bot.send_message(chat_id, analysis, reply_markup=get_main_menu_keyboard(lang))
+    else:
+        await edit_or_answer(msg, analysis, get_main_menu_keyboard(lang))

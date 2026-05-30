@@ -14,7 +14,7 @@ from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
 from stickers import send_random_sticker
-from utils import edit_or_answer
+from utils import edit_or_answer, try_delete
 
 router = Router()
 
@@ -93,13 +93,20 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
     await query.answer()
 
     memory_text = t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago)
+    stickers_enabled = getattr(user, "stickers_enabled", True)
+    chat_id = query.message.chat.id
     msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang))
 
     try:
-        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
             reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
-        await edit_or_answer(msg, f"{memory_text}\n\n{reflection}", get_time_machine_keyboard(lang))
-        await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
+        final_text = f"{memory_text}\n\n{reflection}"
+        if stickers_enabled:
+            await try_delete(msg)
+            await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+            await bot.send_message(chat_id, final_text, reply_markup=get_time_machine_keyboard(lang))
+        else:
+            await edit_or_answer(msg, final_text, get_time_machine_keyboard(lang))
     except Exception:
         pass
 
@@ -128,13 +135,20 @@ async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bo
     await query.answer()
 
     memory_text = t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago)
+    stickers_enabled = getattr(user, "stickers_enabled", True)
+    chat_id = query.message.chat.id
     msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang))
 
     try:
-        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
             reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
-        await edit_or_answer(msg, f"{memory_text}\n\n{reflection}", get_time_machine_keyboard(lang))
-        await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
+        final_text = f"{memory_text}\n\n{reflection}"
+        if stickers_enabled:
+            await try_delete(msg)
+            await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+            await bot.send_message(chat_id, final_text, reply_markup=get_time_machine_keyboard(lang))
+        else:
+            await edit_or_answer(msg, final_text, get_time_machine_keyboard(lang))
     except Exception:
         pass
 
