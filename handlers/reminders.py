@@ -19,7 +19,7 @@ from keyboards import (
 )
 from locales import t
 from scheduler import add_reminder_job, remove_reminder_job
-from utils import edit_or_answer
+from utils import edit_or_answer, edit_stored
 
 router = Router()
 
@@ -95,7 +95,7 @@ async def change_tone(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "choose_tone"), reply_markup=get_tone_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "choose_tone"), get_tone_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:back")
@@ -125,15 +125,19 @@ async def show_timezone_settings(query: CallbackQuery, state: FSMContext, sessio
     offset_str = f"+{offset}" if offset >= 0 else str(offset)
     await state.set_state(ReminderStates.waiting_for_timezone)
     await query.answer()
-    await query.message.answer(t(lang, "timezone_prompt", offset=offset_str))
+    sent = await edit_or_answer(query.message, t(lang, "timezone_prompt", offset=offset_str))
+    await state.update_data(bot_msg_id=sent.message_id, chat_id=sent.chat.id)
 
 
 @router.message(StateFilter(ReminderStates.waiting_for_timezone), F.text)
 async def save_timezone(message: Message, state: FSMContext, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
+
     if user is None:
-        await message.answer(t(lang, "user_not_found"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
         await state.clear()
         return
 
@@ -143,14 +147,13 @@ async def save_timezone(message: Message, state: FSMContext, session) -> None:
         if not (-12 <= offset <= 14):
             raise ValueError
     except ValueError:
-        await message.answer(t(lang, "timezone_invalid"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_invalid"))
         return
 
     user.utc_offset = offset
     session.add(user)
     await session.commit()
 
-    # reschedule all active reminders with new offset
     reminders = await _get_user_reminders(user.id, session)
     for reminder in reminders:
         if reminder.is_active:
@@ -158,7 +161,7 @@ async def save_timezone(message: Message, state: FSMContext, session) -> None:
 
     offset_str = f"+{offset}" if offset >= 0 else str(offset)
     await state.clear()
-    await message.answer(t(lang, "timezone_saved", offset=offset_str), reply_markup=get_settings_keyboard(lang))
+    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_saved", offset=offset_str), get_settings_keyboard(lang))
 
 
 @router.callback_query(F.data == "settings:language")
@@ -166,7 +169,7 @@ async def show_language_settings(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "settings_language_title"), reply_markup=get_settings_language_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "settings_language_title"), get_settings_language_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("settings:lang:"))
@@ -183,7 +186,7 @@ async def change_language(query: CallbackQuery, session) -> None:
     session.add(user)
     await session.commit()
     await query.answer()
-    await query.message.answer(t(new_lang, "language_changed"), reply_markup=get_settings_keyboard(new_lang))
+    await edit_or_answer(query.message, t(new_lang, "language_changed"), get_settings_keyboard(new_lang))
 
 
 @router.callback_query(F.data == "settings:delete")
@@ -191,7 +194,7 @@ async def delete_data_step1(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "delete_confirm_1"), reply_markup=get_delete_confirm_keyboard(lang, 1))
+    await edit_or_answer(query.message, t(lang, "delete_confirm_1"), get_delete_confirm_keyboard(lang, 1))
 
 
 @router.callback_query(F.data == "settings:delete:1")
@@ -199,7 +202,7 @@ async def delete_data_step2(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "delete_confirm_2"), reply_markup=get_delete_confirm_keyboard(lang, 2))
+    await edit_or_answer(query.message, t(lang, "delete_confirm_2"), get_delete_confirm_keyboard(lang, 2))
 
 
 @router.callback_query(F.data == "settings:delete:2")
@@ -207,7 +210,7 @@ async def delete_data_step3(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await query.answer()
-    await query.message.answer(t(lang, "delete_confirm_3"), reply_markup=get_delete_confirm_keyboard(lang, 3))
+    await edit_or_answer(query.message, t(lang, "delete_confirm_3"), get_delete_confirm_keyboard(lang, 3))
 
 
 @router.callback_query(F.data == "settings:delete:3")
@@ -226,7 +229,7 @@ async def delete_data_confirmed(query: CallbackQuery, state: FSMContext, session
     await session.commit()
     await state.clear()
     await query.answer()
-    await query.message.answer(_WELCOME_NEW, reply_markup=get_language_keyboard())
+    await edit_or_answer(query.message, _WELCOME_NEW, get_language_keyboard())
 
 
 @router.callback_query(F.data.startswith("reminder:add:"))
@@ -246,13 +249,15 @@ async def add_reminder(query: CallbackQuery, state: FSMContext, session) -> None
         if reminder_type in {"morning", "evening"}
         else t(lang, "reminder_weekly_prompt")
     )
-    await query.message.answer(prompt)
+    sent = await edit_or_answer(query.message, prompt)
+    await state.update_data(bot_msg_id=sent.message_id, chat_id=sent.chat.id)
 
 
 @router.message(StateFilter(ReminderStates.waiting_for_time), F.text)
 async def save_reminder_time(message: Message, state: FSMContext, session) -> None:
     data = await state.get_data()
     reminder_type = data.get("reminder_type")
+    msg_id = data.get("bot_msg_id")
     if reminder_type is None:
         await state.clear()
         return
@@ -260,7 +265,7 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await message.answer(t(lang, "user_not_found"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
         await state.clear()
         return
     parsed = _parse_time_input(reminder_type, message.text)
@@ -270,7 +275,7 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
             if reminder_type in {"morning", "evening"}
             else t(lang, "reminder_weekly_invalid")
         )
-        await message.answer(prompt)
+        await edit_stored(message.bot, message.chat.id, msg_id, prompt)
         return
 
     reminder = await session.scalar(
@@ -287,7 +292,7 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
 
     reminders = await _get_user_reminders(user.id, session)
     await state.clear()
-    await message.answer(t(lang, "reminder_saved"), reply_markup=get_reminders_keyboard(lang, reminders))
+    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "reminder_saved"), get_reminders_keyboard(lang, reminders))
 
 
 @router.callback_query(F.data.startswith("reminder:remove:"))
@@ -313,4 +318,4 @@ async def remove_reminder(query: CallbackQuery, session) -> None:
 
     reminders = await _get_user_reminders(user.id, session)
     await query.answer()
-    await query.message.answer(t(lang, "reminder_removed"), reply_markup=get_reminders_keyboard(lang, reminders))
+    await edit_or_answer(query.message, t(lang, "reminder_removed"), get_reminders_keyboard(lang, reminders))

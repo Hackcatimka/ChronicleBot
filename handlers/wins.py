@@ -17,6 +17,7 @@ _MAX_INPUT_LEN = 2000
 from db.models import Goal, User, Win, WinGoal
 from keyboards import get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
+from utils import edit_or_answer
 
 router = Router()
 
@@ -85,9 +86,10 @@ async def intent_as_win(query: CallbackQuery, state: FSMContext, session) -> Non
         await state.clear()
         return
     await query.answer()
-    await query.message.answer(
+    await edit_or_answer(
+        query.message,
         t(lang, "win_received", text=raw_text),
-        reply_markup=get_win_confirmation_keyboard(lang),
+        get_win_confirmation_keyboard(lang),
     )
 
 
@@ -107,9 +109,10 @@ async def intent_as_goal(query: CallbackQuery, state: FSMContext, session) -> No
     await query.answer()
     await session.commit()
     await state.clear()
-    await query.message.answer(
+    await edit_or_answer(
+        query.message,
         t(lang, "goal_saved_quick", title=raw_text),
-        reply_markup=get_main_menu_keyboard(lang),
+        get_main_menu_keyboard(lang),
     )
 
 
@@ -151,18 +154,16 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             praise = await ask_praise(user.tone, raw_text, count, lang)
-        await query.message.answer(f"{praise}\n\n{tag_label}")
+        result_text = f"{praise}\n\n{tag_label}"
     except Exception:
         tone_reply = {
             "friend": t(lang, "tone_reply_friend", count=count),
             "coach": t(lang, "tone_reply_coach", count=count),
             "mirror": t(lang, "tone_reply_mirror", count=count),
         }
-        await query.message.answer(
-            tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)) + f"\n\n{tag_label}"
-        )
+        result_text = tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)) + f"\n\n{tag_label}"
 
-    await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(query.message, result_text, get_main_menu_keyboard(lang))
     await state.clear()
 
 
@@ -172,7 +173,7 @@ async def edit_win(query: CallbackQuery, state: FSMContext, session) -> None:
     lang = getattr(user, "language", "en") if user else "en"
     await state.clear()
     await query.answer()
-    await query.message.answer(t(lang, "win_edit_prompt"))
+    await edit_or_answer(query.message, t(lang, "win_edit_prompt"))
 
 
 @router.callback_query(F.data == "cancel_win", StateFilter(WinStates.waiting_for_confirmation))
@@ -181,7 +182,7 @@ async def cancel_win(query: CallbackQuery, state: FSMContext, session) -> None:
     lang = getattr(user, "language", "en") if user else "en"
     await state.clear()
     await query.answer()
-    await query.message.answer(t(lang, "win_cancelled"), reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "win_cancelled"), get_main_menu_keyboard(lang))
 
 
 @router.callback_query(F.data == "link_goal", StateFilter(WinStates.waiting_for_confirmation))
@@ -202,7 +203,7 @@ async def link_goal(query: CallbackQuery, state: FSMContext, session) -> None:
     goals = goals.all()
     if not goals:
         await query.answer()
-        await query.message.answer(t(lang, "no_goals"))
+        await edit_or_answer(query.message, t(lang, "no_goals"), get_main_menu_keyboard(lang))
         await state.clear()
         return
 
@@ -220,7 +221,7 @@ async def link_goal(query: CallbackQuery, state: FSMContext, session) -> None:
     keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
 
     await query.answer()
-    await query.message.answer(t(lang, "choose_goal_for_win"), reply_markup=keyboard)
+    await edit_or_answer(query.message, t(lang, "choose_goal_for_win"), keyboard)
 
 
 @router.callback_query(F.data.startswith("win:link:"), StateFilter(WinStates.waiting_for_goal))
@@ -252,8 +253,7 @@ async def link_win_to_goal(query: CallbackQuery, state: FSMContext, session) -> 
         session.add(link)
         await session.commit()
     await query.answer()
-    await query.message.answer(t(lang, "win_linked"))
-    await query.message.answer(t(lang, "back_to_menu"), reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "win_linked"), get_main_menu_keyboard(lang))
     await state.clear()
 
 
@@ -266,7 +266,7 @@ async def main_menu_handler(query: CallbackQuery, state: FSMContext, session) ->
 
     if action == "record_win":
         await state.clear()
-        await query.message.answer(t(lang, "win_record_prompt"))
+        await edit_or_answer(query.message, t(lang, "win_record_prompt"))
         return
 
-    await query.message.answer(t(lang, "back_to_menu"))
+    await edit_or_answer(query.message, t(lang, "back_to_menu"))

@@ -6,7 +6,7 @@ Telegram bot that saves your wins, tracks your goals, and reflects your progress
 
 ## Features
 
-- **Win recording** — just write what went well, AI reacts personally
+- **Win recording** — just write what went well, AI reacts to the specific thing you did
 - **Goals** — create goals, link wins to them, get AI progress analysis
 - **Reflect** — AI analysis of your last 30 days: patterns, strengths, what's next
 - **Time Machine** — revisit random past wins with AI reflection
@@ -40,6 +40,7 @@ chronicle/
 ├── keyboards.py          # Inline keyboard builders
 ├── locales.py            # All user-facing strings (en + ru)
 ├── ratelimit.py          # In-memory rate limiter
+├── utils.py              # edit_or_answer / edit_stored helpers (one-message UI)
 ├── db/
 │   ├── models.py         # SQLAlchemy models
 │   └── engine.py         # Async engine and session

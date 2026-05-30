@@ -11,7 +11,7 @@ from sqlalchemy import select
 from db.models import User
 from keyboards import get_language_keyboard, get_main_menu_keyboard, get_tone_keyboard
 from locales import t
-from utils import edit_or_answer
+from utils import edit_or_answer, edit_stored
 
 router = Router()
 
@@ -88,7 +88,7 @@ async def language_callback(query: CallbackQuery, state: FSMContext, session) ->
     if is_new_user:
         await state.update_data(onboarding=True)
     await query.answer()
-    await query.message.answer(t(lang, "choose_tone"), reply_markup=get_tone_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "choose_tone"), get_tone_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("tone:"))
@@ -120,12 +120,14 @@ async def tone_callback(query: CallbackQuery, state: FSMContext, session) -> Non
 
     if data.get("onboarding"):
         await state.set_state(OnboardingStates.waiting_for_timezone)
-        await query.message.answer(t(lang, "onboarding_timezone_prompt"))
+        sent = await edit_or_answer(query.message, t(lang, "onboarding_timezone_prompt"))
+        await state.update_data(bot_msg_id=sent.message_id, chat_id=sent.chat.id)
     else:
         await state.clear()
-        await query.message.answer(
+        await edit_or_answer(
+            query.message,
             t(lang, "tone_selected", tone=t(lang, f"tone_{tone}")),
-            reply_markup=get_main_menu_keyboard(lang),
+            get_main_menu_keyboard(lang),
         )
 
 
@@ -133,6 +135,8 @@ async def tone_callback(query: CallbackQuery, state: FSMContext, session) -> Non
 async def onboarding_timezone(message: Message, state: FSMContext, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
 
     text = message.text.strip()
     try:
@@ -140,7 +144,7 @@ async def onboarding_timezone(message: Message, state: FSMContext, session) -> N
         if not (-12 <= offset <= 14):
             raise ValueError
     except ValueError:
-        await message.answer(t(lang, "timezone_invalid"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_invalid"))
         return
 
     if user:
@@ -150,7 +154,8 @@ async def onboarding_timezone(message: Message, state: FSMContext, session) -> N
 
     offset_str = f"+{offset}" if offset >= 0 else str(offset)
     await state.clear()
-    await message.answer(
+    await edit_stored(
+        message.bot, message.chat.id, msg_id,
         t(lang, "onboarding_timezone_saved", offset=offset_str),
-        reply_markup=get_main_menu_keyboard(lang),
+        get_main_menu_keyboard(lang),
     )

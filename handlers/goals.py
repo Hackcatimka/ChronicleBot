@@ -21,7 +21,7 @@ from keyboards import (
     get_abandon_confirm_buttons,
 )
 from locales import t
-from utils import edit_or_answer
+from utils import edit_or_answer, edit_stored
 
 router = Router()
 _MAX_TEXT_LEN = 2000
@@ -76,25 +76,29 @@ async def add_goal_start(query: CallbackQuery, state: FSMContext, session) -> No
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await state.set_state(AddGoalStates.title)
-    await state.update_data({})
     await query.answer()
-    await query.message.answer(t(lang, "goal_title_prompt"))
+    sent = await edit_or_answer(query.message, t(lang, "goal_title_prompt"))
+    await state.update_data(bot_msg_id=sent.message_id, chat_id=sent.chat.id)
 
 
 @router.message(StateFilter(AddGoalStates.title), F.text)
 async def add_goal_title(message: Message, state: FSMContext, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
     if len(message.text) > _MAX_TEXT_LEN:
-        await message.answer(t(lang, "input_too_long"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
         return
     await state.update_data(title=message.text.strip())
     await state.set_state(AddGoalStates.deadline)
-    await message.answer(t(lang, "goal_deadline_prompt"))
+    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_deadline_prompt"))
 
 
 @router.message(StateFilter(AddGoalStates.deadline), F.text)
 async def add_goal_deadline(message: Message, state: FSMContext, session) -> None:
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
     text = message.text.strip()
     if text.lower() == "нет" or text.lower() == "no":
         deadline = None
@@ -104,14 +108,14 @@ async def add_goal_deadline(message: Message, state: FSMContext, session) -> Non
         except ValueError:
             user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
             lang = getattr(user, "language", "en") if user else "en"
-            await message.answer(t(lang, "goal_deadline_invalid"))
+            await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_deadline_invalid"))
             return
 
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await state.update_data(deadline=deadline)
     await state.set_state(AddGoalStates.category)
-    await message.answer(t(lang, "goal_category_prompt"), reply_markup=get_category_keyboard(lang))
+    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_category_prompt"), get_category_keyboard(lang))
 
 
 async def _save_goal_from_state(user: User, state: FSMContext, session) -> Goal:
@@ -145,9 +149,10 @@ async def add_goal_category_button(query: CallbackQuery, state: FSMContext, sess
     await _save_goal_from_state(user, state, session)
     await state.clear()
     goals = await _get_active_goals(user.id, session)
-    await query.message.answer(
+    await edit_or_answer(
+        query.message,
         _render_goals_list(goals, lang),
-        reply_markup=get_goal_menu_keyboard(lang, True),
+        get_goal_menu_keyboard(lang, True),
     )
 
 
@@ -156,15 +161,17 @@ async def add_goal_category_text(message: Message, state: FSMContext, session) -
     category_value = message.text.strip()
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
     if user is None:
-        await message.answer(t(lang, "user_not_found"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
         await state.clear()
         return
     if len(category_value) > 100:
-        await message.answer(t(lang, "input_too_long"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
         return
     if not category_value:
-        await message.answer(t(lang, "goal_category_invalid"))
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_category_invalid"))
         return
 
     await state.update_data(category=category_value)
@@ -172,9 +179,10 @@ async def add_goal_category_text(message: Message, state: FSMContext, session) -
     await _save_goal_from_state(user, state, session)
     await state.clear()
     goals = await _get_active_goals(user.id, session)
-    await message.answer(
+    await edit_stored(
+        message.bot, message.chat.id, msg_id,
         _render_goals_list(goals, lang),
-        reply_markup=get_goal_menu_keyboard(lang, True),
+        get_goal_menu_keyboard(lang, True),
     )
 
 
@@ -187,15 +195,15 @@ async def list_goals(query: CallbackQuery, session) -> None:
         return
 
     goals = await _get_active_goals(user.id, session)
+    await query.answer()
     if not goals:
-        await query.answer()
-        await query.message.answer(
+        await edit_or_answer(
+            query.message,
             t(lang, "goal_list_empty"),
-            reply_markup=get_goal_menu_keyboard(lang, False),
+            get_goal_menu_keyboard(lang, False),
         )
         return
 
-    await query.answer()
     await edit_or_answer(query.message, t(lang, "goal_choose"), get_goal_list_keyboard(lang, goals))
 
 
@@ -277,7 +285,7 @@ async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
     wins_texts = [win.raw_text for win in goal.wins]
 
     await query.answer()
-    await query.message.answer(t(lang, "goal_analysing"))
+    msg = await edit_or_answer(query.message, t(lang, "goal_analysing"))
 
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
@@ -287,7 +295,7 @@ async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
     except Exception:
         analysis = t(lang, "goal_analysis_error")
 
-    await query.message.answer(analysis, reply_markup=get_goal_detail_buttons(lang, goal_id))
+    await edit_or_answer(msg, analysis, get_goal_detail_buttons(lang, goal_id))
 
 
 @router.callback_query(F.data.startswith("goal:done:"))
@@ -311,14 +319,10 @@ async def complete_goal(query: CallbackQuery, session) -> None:
     goal.status = "done"
     await session.commit()
     days = (datetime.now(timezone.utc).date() - goal.created_at.date()).days
-    await query.answer()
-    await query.message.answer(t(lang, "goal_done", title=goal.title, days=days))
-
     goals = await _get_active_goals(user.id, session)
-    await query.message.answer(
-        _render_goals_list(goals, lang),
-        reply_markup=get_goal_menu_keyboard(lang, bool(goals)),
-    )
+    combined = f"{t(lang, 'goal_done', title=goal.title, days=days)}\n\n{_render_goals_list(goals, lang)}"
+    await query.answer()
+    await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))
 
 
 @router.callback_query(F.data.startswith("goal:abandon:"))
@@ -363,14 +367,10 @@ async def confirm_abandon_goal(query: CallbackQuery, session) -> None:
 
     goal.status = "abandoned"
     await session.commit()
-    await query.answer()
-    await query.message.answer(t(lang, "goal_abandoned"))
-
     goals = await _get_active_goals(user.id, session)
-    await query.message.answer(
-        _render_goals_list(goals, lang),
-        reply_markup=get_goal_menu_keyboard(lang, bool(goals)),
-    )
+    combined = f"{t(lang, 'goal_abandoned')}\n\n{_render_goals_list(goals, lang)}"
+    await query.answer()
+    await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))
 
 
 @router.callback_query(F.data.startswith("goal:abandon:cancel:"))
@@ -391,6 +391,6 @@ async def cancel_abandon_goal(query: CallbackQuery, session) -> None:
         await query.answer(t(lang, "goal_not_found"), show_alert=True)
         return
 
+    goals = await _get_active_goals(user.id, session)
     await query.answer()
-    await query.message.answer(t(lang, "goal_abandon_cancelled"))
-    await query.message.answer(t(lang, "goal_choose"), reply_markup=get_goal_list_keyboard(lang, [goal]))
+    await edit_or_answer(query.message, _render_goals_list(goals, lang), get_goal_menu_keyboard(lang, bool(goals)))

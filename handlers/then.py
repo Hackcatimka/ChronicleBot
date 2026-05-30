@@ -24,6 +24,12 @@ def get_time_machine_keyboard(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
+def _back_only_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="then:back")],
+    ])
+
+
 def _format_date(dt: datetime) -> str:
     return dt.strftime("%d %b %Y")
 
@@ -71,10 +77,7 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
 
     if not ids:
         await query.answer()
-        await query.message.answer(
-            t(lang, "no_memories"),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="then:back")]]),
-        )
+        await edit_or_answer(query.message, t(lang, "no_memories"), _back_only_keyboard(lang))
         return
 
     win_id = random.choice(ids)
@@ -86,14 +89,14 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
     days_ago = (datetime.now(timezone.utc).date() - win.created_at.date()).days
     await state.update_data(last_win_id=win.id)
     await query.answer()
-    await query.message.answer(
-        t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago),
-        reply_markup=get_time_machine_keyboard(lang),
-    )
+
+    memory_text = t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago)
+    msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang))
+
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
-        await query.message.answer(reflection)
+        await edit_or_answer(msg, f"{memory_text}\n\n{reflection}", get_time_machine_keyboard(lang))
     except Exception:
         pass
 
@@ -114,23 +117,20 @@ async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bo
 
     if win is None:
         await query.answer()
-        await query.message.answer(
-            t(lang, "only_memory"),
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[[InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="then:back")]]),
-        )
+        await edit_or_answer(query.message, t(lang, "only_memory"), _back_only_keyboard(lang))
         return
 
     days_ago = (datetime.now(timezone.utc).date() - win.created_at.date()).days
     await state.update_data(last_win_id=win.id)
     await query.answer()
-    await query.message.answer(
-        t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago),
-        reply_markup=get_time_machine_keyboard(lang),
-    )
+
+    memory_text = t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago)
+    msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang))
+
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
-        await query.message.answer(reflection)
+        await edit_or_answer(msg, f"{memory_text}\n\n{reflection}", get_time_machine_keyboard(lang))
     except Exception:
         pass
 

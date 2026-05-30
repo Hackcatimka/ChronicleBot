@@ -10,6 +10,7 @@ from db.models import User, Win
 from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
+from utils import edit_or_answer
 
 router = Router()
 
@@ -32,11 +33,11 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
 
     if not wins:
         await query.answer()
-        await query.message.answer(t(lang, "reflect_no_wins"), reply_markup=get_main_menu_keyboard(lang))
+        await edit_or_answer(query.message, t(lang, "reflect_no_wins"), get_main_menu_keyboard(lang))
         return
 
     await query.answer()
-    await query.message.answer(t(lang, "reflect_analysing"))
+    msg = await edit_or_answer(query.message, t(lang, "reflect_analysing"))
 
     try:
         wins_with_tags = [(win.raw_text, win.tag or "other") for win in wins]
@@ -45,4 +46,4 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
     except Exception:
         analysis = t(lang, "reflect_error")
 
-    await query.message.answer(analysis, reply_markup=get_main_menu_keyboard(lang))
+    await edit_or_answer(msg, analysis, get_main_menu_keyboard(lang))
