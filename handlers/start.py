@@ -39,6 +39,12 @@ _WELCOME_NEW = (
 )
 
 
+@router.message(F.sticker)
+async def echo_sticker_set_name(message: Message) -> None:
+    set_name = getattr(message.sticker, "set_name", None) or "unknown"
+    await message.answer(f"Sticker set name: <code>{set_name}</code>")
+
+
 @router.message(Command("start"))
 async def start_handler(message: Message, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))

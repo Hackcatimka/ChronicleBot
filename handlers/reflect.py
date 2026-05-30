@@ -6,10 +6,12 @@ from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import select
 
 from ai import ask_reflect_analysis
+from config import settings
 from db.models import User, Win
 from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
+from stickers import send_random_sticker
 from utils import edit_or_answer
 
 router = Router()
@@ -47,3 +49,4 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
         analysis = t(lang, "reflect_error")
 
     await edit_or_answer(msg, analysis, get_main_menu_keyboard(lang))
+    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)

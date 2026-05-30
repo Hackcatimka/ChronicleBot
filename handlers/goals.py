@@ -2,7 +2,9 @@ from datetime import datetime, timezone
 
 from aiogram import Bot, F, Router
 from ai import ask_goal_progress
+from config import settings
 from ratelimit import check as rate_check
+from stickers import send_random_sticker
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -306,7 +308,7 @@ async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
 
 
 @router.callback_query(F.data.startswith("goal:done:"))
-async def complete_goal(query: CallbackQuery, session) -> None:
+async def complete_goal(query: CallbackQuery, session, bot: Bot) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     if user is None:
@@ -330,6 +332,7 @@ async def complete_goal(query: CallbackQuery, session) -> None:
     combined = f"{t(lang, 'goal_done', title=goal.title, days=days)}\n\n{_render_goals_list(goals, lang)}"
     await query.answer()
     await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))
+    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)
 
 
 @router.callback_query(F.data.startswith("goal:abandon:"))

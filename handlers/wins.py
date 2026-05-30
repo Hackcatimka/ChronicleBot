@@ -14,9 +14,11 @@ from ratelimit import check as rate_check
 
 _saving_users: set[int] = set()
 _MAX_INPUT_LEN = 2000
+from config import settings
 from db.models import Goal, User, Win, WinGoal
 from keyboards import get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
+from stickers import send_random_sticker
 from utils import edit_or_answer
 
 router = Router()
@@ -164,6 +166,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
         result_text = tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)) + f"\n\n{tag_label}"
 
     await edit_or_answer(query.message, result_text, get_main_menu_keyboard(lang))
+    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)
     await state.clear()
 
 

@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     GROQ_API_KEY: str
     SENTRY_DSN: str = ""
     ENV: str = "production"
+    STICKER_SET_NAME: str = ""
 
     model_config = {
         "env_file": ".env",
