@@ -214,6 +214,19 @@ TEXTS = {
         "tag_social": "🤝 Social",
         "tag_finance": "💰 Finance",
         "tag_other": "✨ Other",
+
+        "stats_by_tag": "By category:",
+
+        "btn_search": "🔍 Search",
+        "search_prompt": "Enter a word or phrase to search your moments:",
+        "search_no_results": "No moments found for \"{query}\".",
+        "search_results": "🔍 \"{query}\" — {count} found:",
+        "search_showing": "Showing {start}–{end} of {total}",
+        "btn_search_more": "Load more",
+
+        "deadline_reminder": "⏰ Goal \"{title}\" is due in 3 days — {deadline}.\n\nHow's it going?",
+
+        "milestone": "🎉 Moment #{count} — a milestone!\n\n",
     },
     "ru": {
         "choose_language": "Выбери язык:",
@@ -429,6 +442,19 @@ TEXTS = {
         "tag_social": "🤝 Общение",
         "tag_finance": "💰 Финансы",
         "tag_other": "✨ Другое",
+
+        "stats_by_tag": "По категориям:",
+
+        "btn_search": "🔍 Поиск",
+        "search_prompt": "Введи слово или фразу для поиска по моментам:",
+        "search_no_results": "По запросу \"{query}\" ничего не найдено.",
+        "search_results": "🔍 \"{query}\" — найдено {count}:",
+        "search_showing": "Показано {start}–{end} из {total}",
+        "btn_search_more": "Показать ещё",
+
+        "deadline_reminder": "⏰ Цель \"{title}\" — через 3 дня дедлайн ({deadline}).\n\nКак дела с ней?",
+
+        "milestone": "🎉 Момент #{count} — это веха!\n\n",
     },
 }
 

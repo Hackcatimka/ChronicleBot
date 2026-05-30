@@ -3,13 +3,14 @@ from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.date import DateTrigger
 from sqlalchemy import select
 
 from ai import ask_weekly_narrative
 from locales import t
 
 from db.engine import async_session
-from db.models import Reminder, User, Win
+from db.models import Goal, Reminder, User, Win
 
 logger = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
@@ -118,6 +119,55 @@ def remove_reminder_job(reminder_id: int) -> None:
         pass
 
 
+def _make_deadline_job_id(goal_id: int) -> str:
+    return f"deadline_{goal_id}"
+
+
+async def _send_deadline_reminder(goal_id: int, bot) -> None:
+    logger.info("Firing deadline reminder for goal %s", goal_id)
+    async with async_session() as session:
+        goal = await session.scalar(select(Goal).filter_by(id=goal_id, status="active"))
+        if goal is None:
+            return
+        user = await session.scalar(select(User).filter_by(id=goal.user_id))
+        if user is None:
+            return
+        lang = getattr(user, "language", "en")
+        deadline_str = goal.deadline.strftime("%d.%m.%Y")
+        text = t(lang, "deadline_reminder", title=goal.title, deadline=deadline_str)
+        try:
+            await bot.send_message(user.tg_id, text)
+        except Exception as exc:
+            logger.warning("Failed to send deadline reminder for goal %s: %s", goal_id, exc)
+
+
+def schedule_deadline_job(goal, user, bot) -> None:
+    if not goal.deadline:
+        return
+    today = datetime.now(timezone.utc).date()
+    fire_date = goal.deadline - timedelta(days=3)
+    if fire_date <= today:
+        return
+    utc_offset = getattr(user, "utc_offset", 0)
+    run_dt = datetime(fire_date.year, fire_date.month, fire_date.day, 10, 0, 0, tzinfo=timezone.utc) - timedelta(hours=utc_offset)
+    job_id = _make_deadline_job_id(goal.id)
+    scheduler.add_job(
+        _send_deadline_reminder,
+        DateTrigger(run_date=run_dt),
+        args=[goal.id, bot],
+        id=job_id,
+        replace_existing=True,
+    )
+    logger.info("Scheduled deadline reminder for goal %s on %s", goal.id, run_dt)
+
+
+def remove_deadline_job(goal_id: int) -> None:
+    try:
+        scheduler.remove_job(_make_deadline_job_id(goal_id))
+    except Exception:
+        pass
+
+
 async def init_scheduler(bot) -> None:
     async with async_session() as session:
         reminders = (await session.scalars(select(Reminder).filter_by(is_active=True))).all()
@@ -125,5 +175,14 @@ async def init_scheduler(bot) -> None:
             user = await session.scalar(select(User).filter_by(id=reminder.user_id))
             utc_offset = getattr(user, "utc_offset", 0) if user else 0
             add_reminder_job(reminder, bot, utc_offset)
+
+        goals = (await session.scalars(
+            select(Goal).filter(Goal.status == "active", Goal.deadline.isnot(None))
+        )).all()
+        for goal in goals:
+            user = await session.scalar(select(User).filter_by(id=goal.user_id))
+            if user:
+                schedule_deadline_job(goal, user, bot)
+
     scheduler.start()
     logger.info("Scheduler started with %d jobs", len(scheduler.get_jobs()))

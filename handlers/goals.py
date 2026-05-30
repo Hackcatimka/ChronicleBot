@@ -24,6 +24,7 @@ from keyboards import (
     get_abandon_confirm_buttons,
 )
 from locales import t
+from scheduler import remove_deadline_job, schedule_deadline_job
 from utils import edit_or_answer, edit_stored, try_delete
 
 router = Router()
@@ -154,7 +155,8 @@ async def add_goal_category_button(query: CallbackQuery, state: FSMContext, sess
         return
     await query.answer()
 
-    await _save_goal_from_state(user, state, session)
+    goal = await _save_goal_from_state(user, state, session)
+    schedule_deadline_job(goal, user, query.bot)
     await state.clear()
     goals = await _get_active_goals(user.id, session)
     await edit_or_answer(
@@ -187,7 +189,8 @@ async def add_goal_category_text(message: Message, state: FSMContext, session) -
 
     await state.update_data(category=category_value)
 
-    await _save_goal_from_state(user, state, session)
+    goal = await _save_goal_from_state(user, state, session)
+    schedule_deadline_job(goal, user, message.bot)
     await state.clear()
     goals = await _get_active_goals(user.id, session)
     await edit_stored(
@@ -330,6 +333,7 @@ async def complete_goal(query: CallbackQuery, session, bot: Bot) -> None:
 
     goal.status = "done"
     await session.commit()
+    remove_deadline_job(goal.id)
     days = (datetime.now(timezone.utc).date() - goal.created_at.date()).days
     goals = await _get_active_goals(user.id, session)
     combined = f"{t(lang, 'goal_done', title=goal.title, days=days)}\n\n{_render_goals_list(goals, lang)}"
@@ -386,6 +390,7 @@ async def confirm_abandon_goal(query: CallbackQuery, session) -> None:
 
     goal.status = "abandoned"
     await session.commit()
+    remove_deadline_job(goal.id)
     goals = await _get_active_goals(user.id, session)
     combined = f"{t(lang, 'goal_abandoned')}\n\n{_render_goals_list(goals, lang)}"
     await query.answer()

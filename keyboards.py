@@ -29,6 +29,7 @@ def get_main_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
             InlineKeyboardButton(text=t(lang, "btn_time_machine"), callback_data="menu:time_machine"),
         ],
         [
+            InlineKeyboardButton(text=t(lang, "btn_search"), callback_data="menu:search"),
             InlineKeyboardButton(text=t(lang, "btn_settings"), callback_data="menu:settings"),
         ],
     ])
@@ -166,6 +167,14 @@ def get_abandon_confirm_buttons(lang: str, goal_id: int) -> InlineKeyboardMarkup
         [InlineKeyboardButton(text=t(lang, "btn_yes_abandon"), callback_data=f"goal:abandon:confirm:{goal_id}"),
          InlineKeyboardButton(text=t(lang, "btn_keep"), callback_data=f"goal:abandon:cancel:{goal_id}")],
     ])
+
+
+def get_search_results_keyboard(lang: str, has_more: bool) -> InlineKeyboardMarkup:
+    buttons = []
+    if has_more:
+        buttons.append([InlineKeyboardButton(text=t(lang, "btn_search_more"), callback_data="search:more")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
 def get_category_keyboard(lang: str) -> InlineKeyboardMarkup:

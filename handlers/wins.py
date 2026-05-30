@@ -26,6 +26,8 @@ from utils import edit_or_answer, try_delete
 router = Router()
 logger = logging.getLogger(__name__)
 
+_MILESTONES = {10, 25, 50, 100, 200, 500, 1000}
+
 
 class WinStates(StatesGroup):
     waiting_for_confirmation = State()
@@ -175,6 +177,9 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
             "mirror": t(lang, "tone_reply_mirror", count=count),
         }
         result_text = tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)) + f"\n\n{tag_label}"
+
+    if count in _MILESTONES:
+        result_text = t(lang, "milestone", count=count) + result_text
 
     if stickers_enabled:
         await try_delete(query.message)

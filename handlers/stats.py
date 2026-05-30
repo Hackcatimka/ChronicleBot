@@ -104,6 +104,20 @@ def _period_label(period_key: str, lang: str) -> str:
     }[period_key]
 
 
+_TAG_ORDER = ["work", "health", "learning", "personal", "creative", "social", "finance", "other"]
+
+
+def _format_tag_breakdown(wins: list[Win], lang: str) -> str | None:
+    counts: dict[str, int] = {}
+    for win in wins:
+        tag = win.tag or "other"
+        counts[tag] = counts.get(tag, 0) + 1
+    if not counts:
+        return None
+    parts = [f"{t(lang, f'tag_{tag}')} · {n}" for tag in _TAG_ORDER if (n := counts.get(tag))]
+    return "  ".join(parts)
+
+
 def _get_wins_stats(wins: list[Win], start: datetime | None = None, end: datetime | None = None) -> tuple[int, int, list[Win]]:
     filtered = [win for win in wins if (start is None or win.created_at >= start) and (end is None or win.created_at < end)]
     days = {win.created_at.date() for win in filtered}
@@ -112,7 +126,11 @@ def _get_wins_stats(wins: list[Win], start: datetime | None = None, end: datetim
 
 def _build_period_report(period_name: str, wins: list[Win], days_in_period: int, lang: str) -> str:
     total, active_days, filtered = _get_wins_stats(wins)
-    lines = [t(lang, "report_title", title=period_name), "", t(lang, "report_total_wins", n=total), t(lang, "active_days", n=active_days, total=days_in_period), ""]
+    lines = [t(lang, "report_title", title=period_name), "", t(lang, "report_total_wins", n=total), t(lang, "active_days", n=active_days, total=days_in_period)]
+    breakdown = _format_tag_breakdown(filtered, lang)
+    if breakdown:
+        lines += ["", t(lang, "stats_by_tag"), breakdown]
+    lines.append("")
     if filtered:
         lines.append(t(lang, "report_your_wins"))
         for win in filtered:
@@ -144,6 +162,9 @@ def _build_all_time_report(wins: list[Win], lang: str) -> str:
             t(lang, "report_first_win", date=_format_date(first, lang=lang)),
             t(lang, "report_latest_win", date=_format_date(latest, lang=lang)),
         ]
+        breakdown = _format_tag_breakdown(wins, lang)
+        if breakdown:
+            lines += ["", t(lang, "stats_by_tag"), breakdown]
     else:
         lines = [
             t(lang, "report_title", title=t(lang, "btn_all_time")),

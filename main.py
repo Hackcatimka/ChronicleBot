@@ -10,6 +10,7 @@ from aiogram.types import ErrorEvent
 from config import settings
 from db.engine import async_session, init_db
 from handlers.admin import router as admin_router
+from handlers.search import router as search_router
 from handlers.start import router as start_router
 from handlers.stats import router as stats_router
 from handlers.then import router as then_router
@@ -90,6 +91,7 @@ async def main() -> None:
     dp.error.register(_global_error_handler)
 
     dp.include_router(admin_router)
+    dp.include_router(search_router)
     dp.include_router(start_router)
     dp.include_router(stats_router)
     dp.include_router(then_router)
