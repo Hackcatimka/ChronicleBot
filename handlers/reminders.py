@@ -137,7 +137,8 @@ async def save_timezone(message: Message, state: FSMContext, session) -> None:
     msg_id = data.get("bot_msg_id")
 
     if user is None:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        await state.update_data(bot_msg_id=sent.message_id)
         await state.clear()
         return
 
@@ -147,7 +148,8 @@ async def save_timezone(message: Message, state: FSMContext, session) -> None:
         if not (-12 <= offset <= 14):
             raise ValueError
     except ValueError:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_invalid"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_invalid"))
+        await state.update_data(bot_msg_id=sent.message_id)
         return
 
     user.utc_offset = offset
@@ -265,7 +267,8 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     if user is None:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        await state.update_data(bot_msg_id=sent.message_id)
         await state.clear()
         return
     parsed = _parse_time_input(reminder_type, message.text)
@@ -275,7 +278,8 @@ async def save_reminder_time(message: Message, state: FSMContext, session) -> No
             if reminder_type in {"morning", "evening"}
             else t(lang, "reminder_weekly_invalid")
         )
-        await edit_stored(message.bot, message.chat.id, msg_id, prompt)
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, prompt)
+        await state.update_data(bot_msg_id=sent.message_id)
         return
 
     reminder = await session.scalar(

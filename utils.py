@@ -20,9 +20,7 @@ async def edit_stored(
 ) -> Message:
     if msg_id:
         try:
-            return await bot.edit_message_text(
-                text, chat_id=chat_id, message_id=msg_id, reply_markup=reply_markup
-            )
+            await bot.delete_message(chat_id=chat_id, message_id=msg_id)
         except TelegramBadRequest:
             pass
     return await bot.send_message(chat_id, text, reply_markup=reply_markup)

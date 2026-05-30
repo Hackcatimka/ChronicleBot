@@ -144,7 +144,8 @@ async def onboarding_timezone(message: Message, state: FSMContext, session) -> N
         if not (-12 <= offset <= 14):
             raise ValueError
     except ValueError:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_invalid"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_invalid"))
+        await state.update_data(bot_msg_id=sent.message_id)
         return
 
     if user:

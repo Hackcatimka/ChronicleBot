@@ -88,11 +88,13 @@ async def add_goal_title(message: Message, state: FSMContext, session) -> None:
     data = await state.get_data()
     msg_id = data.get("bot_msg_id")
     if len(message.text) > _MAX_TEXT_LEN:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
+        await state.update_data(bot_msg_id=sent.message_id)
         return
     await state.update_data(title=message.text.strip())
     await state.set_state(AddGoalStates.deadline)
-    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_deadline_prompt"))
+    sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_deadline_prompt"))
+    await state.update_data(bot_msg_id=sent.message_id)
 
 
 @router.message(StateFilter(AddGoalStates.deadline), F.text)
@@ -108,14 +110,16 @@ async def add_goal_deadline(message: Message, state: FSMContext, session) -> Non
         except ValueError:
             user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
             lang = getattr(user, "language", "en") if user else "en"
-            await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_deadline_invalid"))
+            sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_deadline_invalid"))
+            await state.update_data(bot_msg_id=sent.message_id)
             return
 
     user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await state.update_data(deadline=deadline)
     await state.set_state(AddGoalStates.category)
-    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_category_prompt"), get_category_keyboard(lang))
+    sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_category_prompt"), get_category_keyboard(lang))
+    await state.update_data(bot_msg_id=sent.message_id)
 
 
 async def _save_goal_from_state(user: User, state: FSMContext, session) -> Goal:
@@ -164,14 +168,17 @@ async def add_goal_category_text(message: Message, state: FSMContext, session) -
     data = await state.get_data()
     msg_id = data.get("bot_msg_id")
     if user is None:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        await state.update_data(bot_msg_id=sent.message_id)
         await state.clear()
         return
     if len(category_value) > 100:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
+        await state.update_data(bot_msg_id=sent.message_id)
         return
     if not category_value:
-        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_category_invalid"))
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "goal_category_invalid"))
+        await state.update_data(bot_msg_id=sent.message_id)
         return
 
     await state.update_data(category=category_value)
