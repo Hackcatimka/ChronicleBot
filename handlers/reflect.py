@@ -49,4 +49,4 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
         analysis = t(lang, "reflect_error")
 
     await edit_or_answer(msg, analysis, get_main_menu_keyboard(lang))
-    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)
+    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))

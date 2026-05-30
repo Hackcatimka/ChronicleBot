@@ -332,7 +332,7 @@ async def complete_goal(query: CallbackQuery, session, bot: Bot) -> None:
     combined = f"{t(lang, 'goal_done', title=goal.title, days=days)}\n\n{_render_goals_list(goals, lang)}"
     await query.answer()
     await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))
-    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)
+    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
 
 
 @router.callback_query(F.data.startswith("goal:abandon:"))

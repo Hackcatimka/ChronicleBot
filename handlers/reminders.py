@@ -73,8 +73,9 @@ async def _get_user_reminders(user_id: int, session):
 async def show_settings_menu(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    stickers_enabled = getattr(user, "stickers_enabled", True) if user else True
     await query.answer()
-    await edit_or_answer(query.message, t(lang, "settings_title"), get_settings_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "settings_title"), get_settings_keyboard(lang, stickers_enabled))
 
 
 @router.callback_query(F.data == "settings:reminders")
@@ -110,8 +111,23 @@ async def settings_back(query: CallbackQuery, session) -> None:
 async def settings_show(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    stickers_enabled = getattr(user, "stickers_enabled", True) if user else True
     await query.answer()
-    await edit_or_answer(query.message, t(lang, "settings_title"), get_settings_keyboard(lang))
+    await edit_or_answer(query.message, t(lang, "settings_title"), get_settings_keyboard(lang, stickers_enabled))
+
+
+@router.callback_query(F.data == "settings:stickers")
+async def toggle_stickers(query: CallbackQuery, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    if user is None:
+        await query.answer()
+        return
+    lang = getattr(user, "language", "en")
+    user.stickers_enabled = not getattr(user, "stickers_enabled", True)
+    session.add(user)
+    await session.commit()
+    await query.answer(t(lang, "stickers_toggled_on" if user.stickers_enabled else "stickers_toggled_off"))
+    await edit_or_answer(query.message, t(lang, "settings_title"), get_settings_keyboard(lang, user.stickers_enabled))
 
 
 @router.callback_query(F.data == "settings:timezone")
@@ -162,8 +178,9 @@ async def save_timezone(message: Message, state: FSMContext, session) -> None:
             add_reminder_job(reminder, message.bot, offset)
 
     offset_str = f"+{offset}" if offset >= 0 else str(offset)
+    stickers_enabled = getattr(user, "stickers_enabled", True)
     await state.clear()
-    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_saved", offset=offset_str), get_settings_keyboard(lang))
+    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "timezone_saved", offset=offset_str), get_settings_keyboard(lang, stickers_enabled))
 
 
 @router.callback_query(F.data == "settings:language")
@@ -187,8 +204,9 @@ async def change_language(query: CallbackQuery, session) -> None:
     user.language = new_lang
     session.add(user)
     await session.commit()
+    stickers_enabled = getattr(user, "stickers_enabled", True)
     await query.answer()
-    await edit_or_answer(query.message, t(new_lang, "language_changed"), get_settings_keyboard(new_lang))
+    await edit_or_answer(query.message, t(new_lang, "language_changed"), get_settings_keyboard(new_lang, stickers_enabled))
 
 
 @router.callback_query(F.data == "settings:delete")

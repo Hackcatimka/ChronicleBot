@@ -86,12 +86,14 @@ def get_second_compare_keyboard(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
-def get_settings_keyboard(lang: str) -> InlineKeyboardMarkup:
+def get_settings_keyboard(lang: str, stickers_enabled: bool = True) -> InlineKeyboardMarkup:
+    stickers_btn = t(lang, "btn_stickers_on" if stickers_enabled else "btn_stickers_off")
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(lang, "btn_reminders"), callback_data="settings:reminders"),
          InlineKeyboardButton(text=t(lang, "btn_change_tone"), callback_data="settings:tone")],
         [InlineKeyboardButton(text=t(lang, "btn_change_language"), callback_data="settings:language"),
          InlineKeyboardButton(text=t(lang, "btn_set_timezone"), callback_data="settings:timezone")],
+        [InlineKeyboardButton(text=stickers_btn, callback_data="settings:stickers")],
         [InlineKeyboardButton(text=t(lang, "btn_delete_data"), callback_data="settings:delete")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="settings:back")],
     ])

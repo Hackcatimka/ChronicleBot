@@ -166,7 +166,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
         result_text = tone_reply.get(user.tone, t(lang, "tone_reply_mirror", count=count)) + f"\n\n{tag_label}"
 
     await edit_or_answer(query.message, result_text, get_main_menu_keyboard(lang))
-    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)
+    await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
     await state.clear()
 
 

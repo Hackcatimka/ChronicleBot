@@ -99,7 +99,7 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
         await edit_or_answer(msg, f"{memory_text}\n\n{reflection}", get_time_machine_keyboard(lang))
-        await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)
+        await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
     except Exception:
         pass
 
@@ -134,7 +134,7 @@ async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bo
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
         await edit_or_answer(msg, f"{memory_text}\n\n{reflection}", get_time_machine_keyboard(lang))
-        await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME)
+        await send_random_sticker(bot, query.message.chat.id, settings.STICKER_SET_NAME, getattr(user, "stickers_enabled", True))
     except Exception:
         pass
 

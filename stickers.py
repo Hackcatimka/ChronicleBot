@@ -7,9 +7,9 @@ logger = logging.getLogger(__name__)
 _cache: list[str] = []
 
 
-async def send_random_sticker(bot: Bot, chat_id: int, set_name: str) -> None:
+async def send_random_sticker(bot: Bot, chat_id: int, set_name: str, enabled: bool = True) -> None:
     global _cache
-    if not set_name:
+    if not enabled or not set_name:
         return
     if not _cache:
         try:
