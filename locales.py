@@ -7,10 +7,10 @@ TEXTS = {
             "👋 Hi! I'm <b>Chronicle</b> — your personal wins journal.\n\n"
             "Most days you do something worth remembering. Most of it gets forgotten. "
             "Chronicle fixes that — just write what went well, and I'll take care of the rest.\n\n"
-            "✨ AI reaction after every win\n"
+            "✨ AI reaction after every moment\n"
             "🎯 Goals with progress analysis\n"
             "🔮 30-day reflection — what you're becoming\n"
-            "⏪ Time machine — revisit your past wins\n"
+            "⏪ Time machine — revisit your past moments\n"
             "📊 Stats and reminders\n\n"
             "One quick question — how should I talk to you?\n\n"
             "👋 <b>Friend</b>\n"
@@ -38,18 +38,18 @@ TEXTS = {
         "welcome_back": "Welcome back, {name} 👋",
 
         "main_menu": "What happened today? Just write.",
-        "btn_record_win": "🏆 Record a win",
+        "btn_record_win": "🏆 Record a moment",
         "btn_goals": "🎯 My goals",
         "btn_reflect": "🔮 What changed",
         "btn_stats": "📊 Stats",
         "btn_time_machine": "⏪ Time machine",
         "btn_settings": "⚙️ Settings",
 
-        "intent_goal_question": "Looks like a goal 🎯 — want to add it or save as a win?",
+        "intent_goal_question": "Looks like a goal 🎯 — want to add it or save as a moment?",
         "btn_add_as_goal": "🎯 Add as goal",
-        "btn_save_as_win": "🏆 Save as win",
+        "btn_save_as_win": "🏆 Save as moment",
         "goal_saved_quick": "🎯 Goal added: \"{title}\"\n\nYou can set a deadline and category in Goals.",
-        "win_received": "Got it:\n\n{text}\n\nSave this as a win?",
+        "win_received": "Got it:\n\n{text}\n\nSave this as a moment?",
         "btn_save": "✅ Save",
         "btn_link_goal": "🎯 Link to goal",
         "btn_edit": "✏️ Edit",
@@ -61,12 +61,12 @@ TEXTS = {
         "user_not_found": "Use /start first.",
         "rate_limited": "You're sending messages too fast. Please wait a moment.",
         "input_too_long": "Message is too long (max 2000 characters). Please shorten it.",
-        "choose_goal_for_win": "Choose a goal for this win:",
+        "choose_goal_for_win": "Choose a goal for this moment:",
         "win_linked": "Win linked to a goal.",
 
-        "tone_reply_friend": "Saved! 🎉 That's win #{count}. Keep going!",
-        "tone_reply_coach": "Logged. #{count} total. What made this possible?",
-        "tone_reply_mirror": "Win #{count} recorded.",
+        "tone_reply_friend": "Saved! 🎉 That's moment #{count}. Keep going!",
+        "tone_reply_coach": "Moment #{count} logged. What made this possible?",
+        "tone_reply_mirror": "Moment #{count} recorded.",
         "back_to_menu": "Back to menu:",
 
         "stats_title": "📊 Stats",
@@ -78,31 +78,31 @@ TEXTS = {
         "btn_last_month": "Last month",
         "btn_back": "← Back",
         "btn_back_to_stats": "← Back to stats",
-        "no_wins_yet": "No wins recorded yet.",
-        "wins_recorded": "Wins recorded: {n}",
+        "no_wins_yet": "No moments recorded yet.",
+        "wins_recorded": "Moments recorded: {n}",
         "active_days": "Active days: {n} out of {total}",
         "compare_first": "Choose first period:",
         "compare_second": "Choose second period:",
-        "compare_result": "⚖️ {first} vs {second}\n\n{first}: {w1} wins, {d1} active days\n{second}: {w2} wins, {d2} active days\n\n{diff}",
+        "compare_result": "⚖️ {first} vs {second}\n\n{first}: {w1} moments, {d1} active days\n{second}: {w2} moments, {d2} active days\n\n{diff}",
         "period_this_week": "This week",
         "period_last_week": "Last week",
         "period_this_month": "This month",
         "period_last_month": "Last month",
         "report_title": "📊 {title}",
-        "report_no_wins": "No wins recorded yet.",
-        "report_your_wins": "Your wins:",
-        "report_total_wins": "Total wins: {n}",
+        "report_no_wins": "No moments recorded yet.",
+        "report_your_wins": "Your moments:",
+        "report_total_wins": "Total moments: {n}",
         "report_days_with_bot": "Days with the bot: {n}",
-        "report_most_active_month": "Most active month: {month} ({count} wins)",
-        "report_first_win": "First win: {date}",
-        "report_latest_win": "Latest win: {date}",
-        "compare_diff_positive": "+{diff} wins compared to {other} 📈",
-        "compare_diff_negative": "{diff} wins compared to {other} 📉",
+        "report_most_active_month": "Most active month: {month} ({count} moments)",
+        "report_first_win": "First moment: {date}",
+        "report_latest_win": "Latest moment: {date}",
+        "compare_diff_positive": "+{diff} moments compared to {other} 📈",
+        "compare_diff_negative": "{diff} moments compared to {other} 📉",
         "compare_diff_same": "Same wins as {other}.",
         "choose_first_period_prompt": "Choose first period for comparison:",
         "choose_second_period_prompt": "Now choose second period:",
 
-        "no_memories": "⏪ Time machine\n\nNo memories yet. Keep recording your wins —\nin a week I'll have something to show you.",
+        "no_memories": "⏪ Time machine\n\nNo memories yet. Keep recording your moments —\nin a week I'll have something to show you.",
         "memory": "⏪ Time machine\n\nOn {date} you wrote:\n\n\"{text}\"\n\nThat was {days} days ago.",
         "only_memory": "That's the only memory I have so far. Keep going! 🏆",
         "btn_show_another": "🎲 Show another",
@@ -121,8 +121,8 @@ TEXTS = {
         "btn_abandon": "🗑 Abandon",
         "btn_yes_abandon": "✅ Yes, abandon",
         "btn_keep": "❌ Keep it",
-        "no_wins_linked": "No wins linked yet.",
-        "wins_linked": "Wins linked to this goal:",
+        "no_wins_linked": "No moments linked yet.",
+        "wins_linked": "Moments linked to this goal:",
         "goal_list_title": "🎯 My goals",
         "goal_list_empty": "No goals yet. Let's set one!",
         "goal_view_status": "Status: {status}",
@@ -131,8 +131,8 @@ TEXTS = {
         "goal_no_deadline": "No deadline",
         "goal_view_label": "🎯 {title}",
         "goal_view_header": "🎯 {title}",
-        "goal_view_wins": "Wins linked to this goal:",
-        "goal_view_no_wins": "No wins linked yet.",
+        "goal_view_wins": "Moments linked to this goal:",
+        "goal_view_no_wins": "No moments linked yet.",
         "goal_no_category": "None",
 
         "settings_title": "Settings",
@@ -145,8 +145,8 @@ TEXTS = {
         "reminder_weekly_prompt": "What day and time? e.g. Mon 10:00",
         "reminder_invalid": "Invalid format. Use HH:MM (e.g. 09:00)",
         "reminder_weekly_invalid": "Invalid format. Use e.g. Mon 10:00",
-        "morning_checkin": "🌅 Morning check-in\n\nWhat's one thing you want to win today?",
-        "evening_checkin": "🌙 Evening check-in\n\nWhat went well today? Write me a win.",
+        "morning_checkin": "🌅 Morning check-in\n\nWhat's one thing you want to achieve today?",
+        "evening_checkin": "🌙 Evening check-in\n\nWhat went well today? Write me a moment.",
         "reminder_type_morning": "Morning",
         "reminder_type_evening": "Evening",
         "reminder_type_weekly": "Weekly digest",
@@ -154,8 +154,8 @@ TEXTS = {
         "reminder_inactive": "➕ {reminder}",
         "reminder_not_found": "Reminder not found.",
         "weekly_digest_title": "📊 Weekly digest",
-        "weekly_digest_summary": "This week you recorded {count} wins.",
-        "weekly_digest_no_wins": "No wins yet.",
+        "weekly_digest_summary": "This week you recorded {count} moments.",
+        "weekly_digest_no_wins": "No moments yet.",
         "weekly_digest_encouragement": "Keep it up!",
 
         "tone_friend": "Friend 👋",
@@ -177,7 +177,7 @@ TEXTS = {
         "goal_analysis_error": "Couldn't generate analysis right now. Try again later.",
 
         "reflect_analysing": "Looking at your last 30 days...",
-        "reflect_no_wins": "No wins in the last 30 days yet. Write a few first — then come back here.",
+        "reflect_no_wins": "No moments in the last 30 days yet. Write a few first — then come back here.",
         "reflect_error": "Couldn't generate reflection right now. Try again later.",
 
         "onboarding_timezone_prompt": (
@@ -223,10 +223,10 @@ TEXTS = {
             "👋 Привет! Я <b>Chronicle</b> — личный дневник твоих побед.\n\n"
             "Большинство дней ты делаешь что-то стоящее. Большинство из этого забывается. "
             "Chronicle это исправляет — просто пиши что пошло хорошо, а остальное я возьму на себя.\n\n"
-            "✨ Реакция ИИ после каждой победы\n"
+            "✨ Реакция ИИ после каждого момента\n"
             "🎯 Цели с анализом прогресса\n"
             "🔮 30-дневная рефлексия — что ты становишься\n"
-            "⏪ Машина времени — пересмотри прошлое\n"
+            "⏪ Машина времени — пересмотри прошлые моменты\n"
             "📊 Статистика и напоминания\n\n"
             "Один вопрос — как мне с тобой общаться?\n\n"
             "👋 <b>Друг</b>\n"
@@ -254,18 +254,18 @@ TEXTS = {
         "welcome_back": "С возвращением, {name} 👋",
 
         "main_menu": "Что произошло сегодня? Просто напиши.",
-        "btn_record_win": "🏆 Записать победу",
+        "btn_record_win": "🏆 Записать момент",
         "btn_goals": "🎯 Мои цели",
         "btn_reflect": "🔮 Что изменилось",
         "btn_stats": "📊 Статистика",
         "btn_time_machine": "⏪ Машина времени",
         "btn_settings": "⚙️ Настройки",
 
-        "intent_goal_question": "Похоже на цель 🎯 — добавить как цель или сохранить как победу?",
+        "intent_goal_question": "Похоже на цель 🎯 — добавить как цель или сохранить как момент?",
         "btn_add_as_goal": "🎯 Добавить как цель",
-        "btn_save_as_win": "🏆 Сохранить как победу",
+        "btn_save_as_win": "🏆 Сохранить как момент",
         "goal_saved_quick": "🎯 Цель добавлена: \"{title}\"\n\nДедлайн и категорию можно задать в разделе Цели.",
-        "win_received": "Вот что я получил:\n\n{text}\n\nСохранить как победу?",
+        "win_received": "Вот что я получил:\n\n{text}\n\nСохранить как момент?",
         "btn_save": "✅ Сохранить",
         "btn_link_goal": "🎯 Привязать к цели",
         "btn_edit": "✏️ Изменить",
@@ -277,12 +277,12 @@ TEXTS = {
         "user_not_found": "Начни с /start.",
         "rate_limited": "Слишком много сообщений подряд. Подожди немного.",
         "input_too_long": "Сообщение слишком длинное (макс. 2000 символов). Пожалуйста, сократи его.",
-        "choose_goal_for_win": "Выбери цель для этой победы:",
-        "win_linked": "Победа привязана к цели.",
+        "choose_goal_for_win": "Выбери цель для этого момента:",
+        "win_linked": "Момент привязан к цели.",
 
-        "tone_reply_friend": "Сохранено! 🎉 Это победа #{count}. Продолжай!",
-        "tone_reply_coach": "Записано. #{count} всего. Что помогло это сделать?",
-        "tone_reply_mirror": "Победа #{count} записана.",
+        "tone_reply_friend": "Сохранено! 🎉 Это момент #{count}. Продолжай!",
+        "tone_reply_coach": "Момент #{count} записан. Что помогло это сделать?",
+        "tone_reply_mirror": "Момент #{count} записан.",
         "back_to_menu": "Главное меню:",
 
         "stats_title": "📊 Статистика",
@@ -294,31 +294,31 @@ TEXTS = {
         "btn_last_month": "Прошлый месяц",
         "btn_back": "← Назад",
         "btn_back_to_stats": "← К статистике",
-        "no_wins_yet": "Побед пока нет.",
-        "wins_recorded": "Побед записано: {n}",
+        "no_wins_yet": "Моментов пока нет.",
+        "wins_recorded": "Моментов записано: {n}",
         "active_days": "Активных дней: {n} из {total}",
         "compare_first": "Выбери первый период:",
         "compare_second": "Выбери второй период:",
-        "compare_result": "⚖️ {first} vs {second}\n\n{first}: {w1} побед, {d1} активных дней\n{second}: {w2} побед, {d2} активных дней\n\n{diff}",
+        "compare_result": "⚖️ {first} vs {second}\n\n{first}: {w1} моментов, {d1} активных дней\n{second}: {w2} моментов, {d2} активных дней\n\n{diff}",
         "period_this_week": "Эта неделя",
         "period_last_week": "Прошлая неделя",
         "period_this_month": "Этот месяц",
         "period_last_month": "Прошлый месяц",
         "report_title": "📊 {title}",
-        "report_no_wins": "Побед пока нет.",
-        "report_your_wins": "Твои победы:",
-        "report_total_wins": "Всего побед: {n}",
+        "report_no_wins": "Моментов пока нет.",
+        "report_your_wins": "Твои моменты:",
+        "report_total_wins": "Всего моментов: {n}",
         "report_days_with_bot": "Дней с ботом: {n}",
-        "report_most_active_month": "Самый активный месяц: {month} ({count} побед)",
-        "report_first_win": "Первая победа: {date}",
-        "report_latest_win": "Последняя победа: {date}",
-        "compare_diff_positive": "+{diff} побед по сравнению с {other} 📈",
-        "compare_diff_negative": "{diff} побед по сравнению с {other} 📉",
+        "report_most_active_month": "Самый активный месяц: {month} ({count} моментов)",
+        "report_first_win": "Первый момент: {date}",
+        "report_latest_win": "Последний момент: {date}",
+        "compare_diff_positive": "+{diff} моментов по сравнению с {other} 📈",
+        "compare_diff_negative": "{diff} моментов по сравнению с {other} 📉",
         "compare_diff_same": "Тот же результат, что и {other}.",
         "choose_first_period_prompt": "Выбери первый период для сравнения:",
         "choose_second_period_prompt": "Теперь выбери второй период:",
 
-        "no_memories": "⏪ Машина времени\n\nВоспоминаний пока нет. Записывай победы —\nчерез неделю будет что показать.",
+        "no_memories": "⏪ Машина времени\n\nВоспоминаний пока нет. Записывай моменты —\nчерез неделю будет что показать.",
         "memory": "⏪ Машина времени\n\n{date} ты написал:\n\n\"{text}\"\n\nЭто было {days} дней назад.",
         "only_memory": "Это пока единственное воспоминание. Продолжай! 🏆",
         "btn_show_another": "🎲 Другое воспоминание",
@@ -337,8 +337,8 @@ TEXTS = {
         "btn_abandon": "🗑 Отказаться",
         "btn_yes_abandon": "✅ Да, отказаться",
         "btn_keep": "❌ Оставить",
-        "no_wins_linked": "Побед пока не привязано.",
-        "wins_linked": "Победы привязанные к цели:",
+        "no_wins_linked": "Моментов пока не привязано.",
+        "wins_linked": "Моменты привязанные к цели:",
         "goal_list_title": "🎯 Мои цели",
         "goal_list_empty": "Целей пока нет. Давай добавим!",
         "goal_view_status": "Статус: {status}",
@@ -347,8 +347,8 @@ TEXTS = {
         "goal_no_deadline": "Без дедлайна",
         "goal_view_label": "🎯 {title}",
         "goal_view_header": "🎯 {title}",
-        "goal_view_wins": "Победы привязанные к цели:",
-        "goal_view_no_wins": "Побед пока не привязано.",
+        "goal_view_wins": "Моменты привязанные к цели:",
+        "goal_view_no_wins": "Моментов пока не привязано.",
         "goal_no_category": "Нет",
 
         "settings_title": "Настройки",
@@ -362,7 +362,7 @@ TEXTS = {
         "reminder_invalid": "Неверный формат. Используй HH:MM (например 09:00)",
         "reminder_weekly_invalid": "Неверный формат. Например: Mon 10:00",
         "morning_checkin": "🌅 Утренний чекин\n\nЧто хочешь сделать сегодня?",
-        "evening_checkin": "🌙 Вечерний чекин\n\nЧто пошло хорошо сегодня? Напиши победу.",
+        "evening_checkin": "🌙 Вечерний чекин\n\nЧто пошло хорошо сегодня? Напиши момент.",
         "reminder_type_morning": "Утреннее",
         "reminder_type_evening": "Вечернее",
         "reminder_type_weekly": "Недельный дайджест",
@@ -370,8 +370,8 @@ TEXTS = {
         "reminder_inactive": "➕ {reminder}",
         "reminder_not_found": "Напоминание не найдено.",
         "weekly_digest_title": "📊 Недельный дайджест",
-        "weekly_digest_summary": "На этой неделе ты записал {count} побед.",
-        "weekly_digest_no_wins": "Побед пока нет.",
+        "weekly_digest_summary": "На этой неделе ты записал {count} моментов.",
+        "weekly_digest_no_wins": "Моментов пока нет.",
         "weekly_digest_encouragement": "Так держать!",
 
         "tone_friend": "Друг 👋",
@@ -392,7 +392,7 @@ TEXTS = {
         "goal_analysis_error": "Не удалось сгенерировать анализ. Попробуй позже.",
 
         "reflect_analysing": "Смотрю на твои последние 30 дней...",
-        "reflect_no_wins": "За последние 30 дней побед ещё нет. Запиши несколько — потом возвращайся.",
+        "reflect_no_wins": "За последние 30 дней моментов ещё нет. Запиши несколько — потом возвращайся.",
         "reflect_error": "Не удалось сгенерировать рефлексию. Попробуй позже.",
 
         "onboarding_timezone_prompt": (
