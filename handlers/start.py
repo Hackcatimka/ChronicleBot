@@ -20,23 +20,7 @@ class OnboardingStates(StatesGroup):
     waiting_for_timezone = State()
 
 
-_WELCOME_NEW = (
-    "👋 Hi! / Привет!\n\n"
-    "I'm <b>Chronicle</b> — your personal wins journal.\n"
-    "Я <b>Chronicle</b> — твой личный дневник побед.\n\n"
-    "Every day you do something worth remembering. Most of it gets forgotten.\n"
-    "Каждый день ты делаешь что-то стоящее. Большинство из этого забывается.\n\n"
-    "Just write what went well — big or small. Chronicle saves your wins, "
-    "tracks your goals, and reflects your progress back to you with AI.\n"
-    "Просто пиши что пошло хорошо. Chronicle сохранит победы, "
-    "проследит за целями и отразит твой прогресс через ИИ.\n\n"
-    "✨ AI reaction after every win\n"
-    "🎯 Goals with linked wins and progress analysis\n"
-    "🔮 30-day reflection — what you're becoming\n"
-    "⏪ Time machine — revisit your past wins\n"
-    "📊 Stats, streaks, and reminders\n\n"
-    "Choose your language / Выбери язык 👇"
-)
+_WELCOME_NEW = "🌍 Choose your language / Выбери язык:"
 
 
 @router.message(Command("start"))
@@ -88,7 +72,8 @@ async def language_callback(query: CallbackQuery, state: FSMContext, session) ->
     if is_new_user:
         await state.update_data(onboarding=True)
     await query.answer()
-    await edit_or_answer(query.message, t(lang, "choose_tone"), get_tone_keyboard(lang))
+    text = t(lang, "onboarding_welcome") if is_new_user else t(lang, "choose_tone")
+    await edit_or_answer(query.message, text, get_tone_keyboard(lang))
 
 
 @router.callback_query(F.data.startswith("tone:"))

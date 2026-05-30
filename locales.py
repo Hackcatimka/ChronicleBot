@@ -3,8 +3,26 @@ TEXTS = {
         "choose_language": "Choose your language:",
         "language_english": "🇬🇧 English",
         "language_russian": "🇷🇺 Русский",
+        "onboarding_welcome": (
+            "👋 Hi! I'm <b>Chronicle</b> — your personal wins journal.\n\n"
+            "Most days you do something worth remembering. Most of it gets forgotten. "
+            "Chronicle fixes that — just write what went well, and I'll take care of the rest.\n\n"
+            "✨ AI reaction after every win\n"
+            "🎯 Goals with progress analysis\n"
+            "🔮 30-day reflection — what you're becoming\n"
+            "⏪ Time machine — revisit your past wins\n"
+            "📊 Stats and reminders\n\n"
+            "One quick question — how should I talk to you?\n\n"
+            "👋 <b>Friend</b>\n"
+            "Warm and casual. Celebrates your wins, keeps things light.\n\n"
+            "💪 <b>Coach</b>\n"
+            "Direct and motivating. Pushes you to reflect — what made this possible? What's next?\n\n"
+            "🪞 <b>Mirror</b>\n"
+            "Neutral and factual. Just your progress, no hype.\n\n"
+            "You can change this later in Settings."
+        ),
         "choose_tone": (
-            "Almost done! One last thing — how should I talk to you?\n\n"
+            "How should I talk to you?\n\n"
             "👋 <b>Friend</b>\n"
             "Warm and casual. Celebrates your wins with you, cheers you on, "
             "keeps things light and encouraging.\n\n"
@@ -201,8 +219,26 @@ TEXTS = {
         "choose_language": "Выбери язык:",
         "language_english": "🇬🇧 English",
         "language_russian": "🇷🇺 Русский",
+        "onboarding_welcome": (
+            "👋 Привет! Я <b>Chronicle</b> — личный дневник твоих побед.\n\n"
+            "Большинство дней ты делаешь что-то стоящее. Большинство из этого забывается. "
+            "Chronicle это исправляет — просто пиши что пошло хорошо, а остальное я возьму на себя.\n\n"
+            "✨ Реакция ИИ после каждой победы\n"
+            "🎯 Цели с анализом прогресса\n"
+            "🔮 30-дневная рефлексия — что ты становишься\n"
+            "⏪ Машина времени — пересмотри прошлое\n"
+            "📊 Статистика и напоминания\n\n"
+            "Один вопрос — как мне с тобой общаться?\n\n"
+            "👋 <b>Друг</b>\n"
+            "Тепло и неформально. Праздную победы вместе с тобой, держу тон лёгким.\n\n"
+            "💪 <b>Коуч</b>\n"
+            "Конкретно и мотивирующе. Задаю вопросы — что помогло? что дальше?\n\n"
+            "🪞 <b>Зеркало</b>\n"
+            "Нейтрально и по фактам. Только прогресс, без лишних слов.\n\n"
+            "Это можно изменить в Настройках."
+        ),
         "choose_tone": (
-            "Почти готово! Последний шаг — как мне с тобой общаться?\n\n"
+            "Как мне с тобой общаться?\n\n"
             "👋 <b>Друг</b>\n"
             "Тепло и неформально. Праздную победы вместе с тобой, подбадриваю, "
             "держу тон лёгким и поддерживающим.\n\n"
