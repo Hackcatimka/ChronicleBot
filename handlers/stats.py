@@ -10,7 +10,7 @@ from sqlalchemy import select
 
 from db.models import User, Win
 from locales import t
-from utils import edit_or_answer
+from utils import edit_or_answer, format_date
 
 router = Router()
 
@@ -90,9 +90,7 @@ def _month_name(month: int, lang: str) -> str:
 
 
 def _format_date(dt: datetime, with_year: bool = True, lang: str = "en") -> str:
-    if with_year:
-        return dt.strftime("%d %b %Y")
-    return dt.strftime("%a, %d %b")
+    return format_date(dt, lang, weekday=not with_year, year=with_year)
 
 
 def _period_label(period_key: str, lang: str) -> str:

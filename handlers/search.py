@@ -10,7 +10,7 @@ from sqlalchemy import select
 from db.models import User, Win
 from keyboards import get_main_menu_keyboard, get_search_results_keyboard
 from locales import t
-from utils import edit_or_answer, edit_stored
+from utils import edit_or_answer, edit_stored, format_date
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ class SearchStates(StatesGroup):
 def _format_results(wins: list[Win], query_text: str, total: int, offset: int, lang: str) -> str:
     lines = [t(lang, "search_results", query=query_text, count=total), ""]
     for win in wins:
-        date_str = win.created_at.strftime("%d %b %Y")
+        date_str = format_date(win.created_at, lang)
         lines.append(f"— {date_str}: {win.raw_text}")
     end = offset + len(wins)
     lines += ["", t(lang, "search_showing", start=offset + 1, end=end, total=total)]

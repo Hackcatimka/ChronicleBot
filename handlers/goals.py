@@ -25,7 +25,7 @@ from keyboards import (
 )
 from locales import t
 from scheduler import remove_deadline_job, schedule_deadline_job
-from utils import edit_or_answer, edit_stored, try_delete
+from utils import edit_or_answer, edit_stored, format_date, try_delete
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -40,9 +40,9 @@ class AddGoalStates(StatesGroup):
 
 
 def _format_date(dt: datetime | None, lang: str) -> str:
-    if dt:
-        return dt.strftime("%d %b %Y")
-    return t(lang, "goal_no_deadline")
+    if dt is None:
+        return t(lang, "goal_no_deadline")
+    return format_date(dt, lang)
 
 
 async def _get_active_goals(user_id: int, session):
@@ -262,7 +262,7 @@ async def view_goal(query: CallbackQuery, session) -> None:
     ]
     if wins:
         for win in wins:
-            lines.append(f"— {win.raw_text} ({win.created_at.strftime('%d %b')})")
+            lines.append(f"— {win.raw_text} ({format_date(win.created_at, lang, year=False)})")
     else:
         lines.append(t(lang, "goal_view_no_wins"))
 

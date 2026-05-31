@@ -15,7 +15,7 @@ from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
 from stickers import send_random_sticker
-from utils import edit_or_answer, try_delete
+from utils import edit_or_answer, format_date, try_delete
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -34,8 +34,8 @@ def _back_only_keyboard(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
-def _format_date(dt: datetime) -> str:
-    return dt.strftime("%d %b %Y")
+def _format_date(dt: datetime, lang: str = "en") -> str:
+    return format_date(dt, lang)
 
 
 async def _get_user_and_old_win_ids(query: CallbackQuery, session):
@@ -94,7 +94,7 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
     await state.update_data(last_win_id=win.id)
     await query.answer()
 
-    memory_text = t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago)
+    memory_text = t(lang, "memory", date=_format_date(win.created_at, lang), text=win.raw_text, days=days_ago)
     stickers_enabled = getattr(user, "stickers_enabled", True)
     chat_id = query.message.chat.id
     msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang))
@@ -136,7 +136,7 @@ async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bo
     await state.update_data(last_win_id=win.id)
     await query.answer()
 
-    memory_text = t(lang, "memory", date=_format_date(win.created_at), text=win.raw_text, days=days_ago)
+    memory_text = t(lang, "memory", date=_format_date(win.created_at, lang), text=win.raw_text, days=days_ago)
     stickers_enabled = getattr(user, "stickers_enabled", True)
     chat_id = query.message.chat.id
     msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang))
