@@ -217,9 +217,10 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
     if stickers_enabled:
         await try_delete(query.message)
         await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
-        await bot.send_message(chat_id, result_text, reply_markup=get_main_menu_keyboard(lang))
+        await bot.send_message(chat_id, result_text)
     else:
-        await edit_or_answer(query.message, result_text, get_main_menu_keyboard(lang))
+        await edit_or_answer(query.message, result_text)
+    await bot.send_message(chat_id, t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))
 
     if tag_count == _GOAL_SUGGESTION_THRESHOLD:
         recent_wins = await session.scalars(
