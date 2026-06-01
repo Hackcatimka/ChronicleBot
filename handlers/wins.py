@@ -195,7 +195,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
     count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id))
     tag_count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id, tag=tag))
     tag_label = t(lang, f"tag_{tag}")
-    stickers_enabled = getattr(user, "stickers_enabled", True)
+    stickers_enabled = getattr(user, "stickers_enabled", False)
     chat_id = query.message.chat.id
     await query.answer()
     try:
@@ -280,12 +280,21 @@ async def link_goal(query: CallbackQuery, state: FSMContext, session) -> None:
     goals = await session.scalars(select(Goal).filter_by(user_id=user.id, status="active"))
     goals = goals.all()
     if not goals:
+        tag = data.get("tag", "other")
+        win = Win(user_id=user.id, raw_text=raw_text, processed_text=raw_text, tag=tag)
+        session.add(win)
+        await session.commit()
+        keyboard = InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text=t(lang, "btn_create_first_goal"), callback_data="goals:add")],
+            [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="menu:record_win")],
+        ])
         await query.answer()
-        await edit_or_answer(query.message, t(lang, "no_goals"), get_main_menu_keyboard(lang))
+        await edit_or_answer(query.message, t(lang, "win_saved_no_goals"), keyboard)
         await state.clear()
         return
 
-    win = Win(user_id=user.id, raw_text=raw_text, processed_text=raw_text)
+    tag = data.get("tag", "other")
+    win = Win(user_id=user.id, raw_text=raw_text, processed_text=raw_text, tag=tag)
     session.add(win)
     await session.commit()
 

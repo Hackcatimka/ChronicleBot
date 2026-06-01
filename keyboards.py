@@ -140,7 +140,10 @@ def get_reminders_keyboard(lang: str, reminders: list) -> InlineKeyboardMarkup:
 
 
 def get_goal_menu_keyboard(lang: str, has_goals: bool) -> InlineKeyboardMarkup:
-    buttons = [[InlineKeyboardButton(text=t(lang, "btn_add_goal"), callback_data="goals:add")]]
+    buttons = [
+        [InlineKeyboardButton(text=t(lang, "btn_add_goal"), callback_data="goals:add"),
+         InlineKeyboardButton(text=t(lang, "goals_suggest_btn"), callback_data="goals:suggest")],
+    ]
     if has_goals:
         buttons.append([InlineKeyboardButton(text=t(lang, "btn_goal_details"), callback_data="goals:list")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="goals:back")])
@@ -153,12 +156,25 @@ def get_goal_list_keyboard(lang: str, goals: list) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def get_goal_detail_buttons(lang: str, goal_id: int) -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
+def get_goal_detail_buttons(lang: str, goal_id: int, has_wins: bool = False) -> InlineKeyboardMarkup:
+    rows = [
         [InlineKeyboardButton(text=t(lang, "btn_mark_done"), callback_data=f"goal:done:{goal_id}"),
          InlineKeyboardButton(text=t(lang, "btn_abandon"), callback_data=f"goal:abandon:{goal_id}")],
-        [InlineKeyboardButton(text=t(lang, "btn_analyse_goal"), callback_data=f"goal:analyse:{goal_id}")],
-        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="goals:list")],
+        [InlineKeyboardButton(text=t(lang, "btn_analyse_goal"), callback_data=f"goal:analyse:{goal_id}"),
+         InlineKeyboardButton(text=t(lang, "btn_edit_goal"), callback_data=f"goal:edit:{goal_id}")],
+    ]
+    if has_wins:
+        rows.append([InlineKeyboardButton(text=t(lang, "btn_manage_wins"), callback_data=f"goal:manage_wins:{goal_id}")])
+    rows.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="goals:list")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def get_goal_edit_keyboard(lang: str, goal_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_edit_goal_title"), callback_data=f"goal:edit:title:{goal_id}"),
+         InlineKeyboardButton(text=t(lang, "btn_edit_goal_deadline"), callback_data=f"goal:edit:deadline:{goal_id}")],
+        [InlineKeyboardButton(text=t(lang, "btn_edit_goal_category"), callback_data=f"goal:edit:category:{goal_id}")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data=f"goal:view:{goal_id}")],
     ])
 
 

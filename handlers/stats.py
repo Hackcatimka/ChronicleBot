@@ -1,15 +1,18 @@
 import calendar
 from datetime import datetime, timedelta, timezone
 
-from aiogram import F, Router
+from aiogram import Bot, F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import select
 
+from ai import ask_weekly_narrative
 from db.models import User, Win
 from locales import t
+from ratelimit import check as rate_check
 from utils import edit_or_answer, format_date
 
 router = Router()
@@ -21,6 +24,7 @@ def get_stats_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
          InlineKeyboardButton(text=t(lang, "btn_this_month"), callback_data="stats:month")],
         [InlineKeyboardButton(text=t(lang, "btn_all_time"), callback_data="stats:all"),
          InlineKeyboardButton(text=t(lang, "btn_compare"), callback_data="stats:compare")],
+        [InlineKeyboardButton(text=t(lang, "btn_weekly_digest"), callback_data="stats:digest")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="main:back")],
     ])
 
@@ -105,6 +109,22 @@ def _period_label(period_key: str, lang: str) -> str:
 _TAG_ORDER = ["work", "health", "learning", "personal", "creative", "social", "finance", "other"]
 
 
+def _compute_streak(wins: list[Win]) -> int:
+    if not wins:
+        return 0
+    today = datetime.now(timezone.utc).date()
+    days_with_wins = {win.created_at.date() for win in wins}
+    for start in (today, today - timedelta(days=1)):
+        if start not in days_with_wins:
+            continue
+        streak, day = 0, start
+        while day in days_with_wins:
+            streak += 1
+            day -= timedelta(days=1)
+        return streak
+    return 0
+
+
 def _format_tag_breakdown(wins: list[Win], lang: str) -> str | None:
     counts: dict[str, int] = {}
     for win in wins:
@@ -151,6 +171,7 @@ def _build_all_time_report(wins: list[Win], lang: str) -> str:
         most_active = max(month_counts.items(), key=lambda item: item[1])
         most_active_name = _month_name(most_active[0][1], lang)
         month_count = most_active[1]
+        streak = _compute_streak(wins)
         lines = [
             t(lang, "report_title", title=t(lang, "period_caption", label=t(lang, "btn_all_time"))),
             "",
@@ -160,6 +181,8 @@ def _build_all_time_report(wins: list[Win], lang: str) -> str:
             t(lang, "report_first_win", date=_format_date(first, lang=lang)),
             t(lang, "report_latest_win", date=_format_date(latest, lang=lang)),
         ]
+        if streak > 0:
+            lines.append(t(lang, "stats_streak", n=streak))
         breakdown = _format_tag_breakdown(wins, lang)
         if breakdown:
             lines += ["", t(lang, "stats_by_tag"), breakdown]
@@ -309,3 +332,32 @@ async def choose_second_period(query: CallbackQuery, state: FSMContext, session)
     await query.answer()
     await edit_or_answer(query.message, _format_compare_report(first_choice, second_choice, first_stats[:2], second_stats[:2], lang), get_back_to_stats_keyboard(lang))
     await state.clear()
+
+
+@router.callback_query(F.data == "stats:digest")
+async def show_weekly_digest(query: CallbackQuery, session, bot: Bot) -> None:
+    if not rate_check(query.from_user.id):
+        await query.answer(t("en", "rate_limited"), show_alert=True)
+        return
+    user, wins = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
+        return
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    recent = [w for w in wins if w.created_at >= cutoff]
+    await query.answer()
+
+    if not recent:
+        await edit_or_answer(query.message, t(lang, "stats_digest_empty"), get_back_to_stats_keyboard(lang))
+        return
+
+    msg = await edit_or_answer(query.message, t(lang, "stats_digest_loading"))
+    try:
+        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+            wins_with_tags = [(w.raw_text, w.tag or "other") for w in recent]
+            digest = await ask_weekly_narrative(user.tone, wins_with_tags, lang)
+    except Exception:
+        digest = "\n".join(f"— {w.raw_text}" for w in recent)
+    await edit_or_answer(msg, digest, get_back_to_stats_keyboard(lang))

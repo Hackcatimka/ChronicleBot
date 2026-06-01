@@ -229,6 +229,43 @@ TEXTS = {
 
         "milestone": "🎉 Moment #{count} — a milestone!\n\n",
 
+        "btn_edit_win": "✏️ Edit",
+        "btn_delete_win": "🗑 Delete",
+        "win_delete_confirm": "Delete this moment? This can't be undone.",
+        "btn_delete_confirm": "✅ Yes, delete",
+        "win_deleted": "Moment deleted.",
+        "win_edit_new_text": "Send the new text for this moment:",
+        "win_edited": "Moment updated.",
+
+        "btn_manage_wins": "✂️ Manage moments",
+        "choose_win_to_unlink": "Choose a moment to unlink from this goal:",
+        "win_unlinked": "Moment unlinked.",
+        "btn_edit_goal": "✏️ Edit",
+        "goal_edit_menu": "What do you want to change?",
+        "btn_edit_goal_title": "✏️ Title",
+        "btn_edit_goal_deadline": "📅 Deadline",
+        "btn_edit_goal_category": "🏷 Category",
+        "goal_edit_title_prompt": "Write a new goal title:",
+        "goal_edit_deadline_prompt": "Write a new deadline (DD.MM.YYYY) or \"no\" to remove:",
+        "goal_edit_category_prompt": "Write a new category or choose one:",
+        "goal_title_updated": "Goal title updated.",
+        "goal_deadline_updated": "Deadline updated.",
+        "goal_deadline_removed": "Deadline removed.",
+        "goal_category_updated": "Category updated.",
+
+        "goal_progress_line": "{count} moments · {days} days",
+
+        "stats_streak": "🔥 Streak: {n} days",
+        "btn_weekly_digest": "📋 Digest",
+        "stats_digest_loading": "Loading your weekly digest...",
+        "stats_digest_empty": "No moments in the last 7 days.",
+
+        "goals_suggest_btn": "💡 Suggest a goal",
+        "goals_suggest_no_data": "Not enough moments yet to suggest a goal. Keep writing!",
+
+        "win_saved_no_goals": "Moment saved. You have no goals yet.",
+        "btn_create_first_goal": "🎯 Create a goal",
+
         "goal_suggestion": (
             "I notice a pattern — you often write about {tag}.\n\n"
             "Here's a goal that might fit:\n\n"
@@ -470,6 +507,43 @@ TEXTS = {
         "deadline_reminder": "⏰ Цель \"{title}\" — через 3 дня дедлайн ({deadline}).\n\nКак дела с ней?",
 
         "milestone": "🎉 Момент #{count} — это веха!\n\n",
+
+        "btn_edit_win": "✏️ Изменить",
+        "btn_delete_win": "🗑 Удалить",
+        "win_delete_confirm": "Удалить этот момент? Это нельзя отменить.",
+        "btn_delete_confirm": "✅ Да, удалить",
+        "win_deleted": "Момент удалён.",
+        "win_edit_new_text": "Отправь новый текст для этого момента:",
+        "win_edited": "Момент обновлён.",
+
+        "btn_manage_wins": "✂️ Управление моментами",
+        "choose_win_to_unlink": "Выбери момент чтобы отвязать от цели:",
+        "win_unlinked": "Момент отвязан.",
+        "btn_edit_goal": "✏️ Изменить",
+        "goal_edit_menu": "Что хочешь изменить?",
+        "btn_edit_goal_title": "✏️ Название",
+        "btn_edit_goal_deadline": "📅 Дедлайн",
+        "btn_edit_goal_category": "🏷 Категория",
+        "goal_edit_title_prompt": "Напиши новое название цели:",
+        "goal_edit_deadline_prompt": "Напиши новый дедлайн (DD.MM.YYYY) или «нет» чтобы убрать:",
+        "goal_edit_category_prompt": "Напиши новую категорию или выбери из кнопок:",
+        "goal_title_updated": "Название цели обновлено.",
+        "goal_deadline_updated": "Дедлайн обновлён.",
+        "goal_deadline_removed": "Дедлайн убран.",
+        "goal_category_updated": "Категория обновлена.",
+
+        "goal_progress_line": "{count} моментов · {days} дней",
+
+        "stats_streak": "🔥 Серия: {n} дней",
+        "btn_weekly_digest": "📋 Дайджест",
+        "stats_digest_loading": "Загружаю дайджест...",
+        "stats_digest_empty": "За последние 7 дней моментов нет.",
+
+        "goals_suggest_btn": "💡 Предложить цель",
+        "goals_suggest_no_data": "Запиши хотя бы 5 моментов чтобы получить предложение цели.",
+
+        "win_saved_no_goals": "Момент сохранён. Активных целей пока нет.",
+        "btn_create_first_goal": "🎯 Создать цель",
 
         "goal_suggestion": (
             "Я замечаю паттерн — ты часто пишешь про {tag}.\n\n"
