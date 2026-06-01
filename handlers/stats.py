@@ -24,6 +24,7 @@ def get_stats_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
          InlineKeyboardButton(text=t(lang, "btn_this_month"), callback_data="stats:month")],
         [InlineKeyboardButton(text=t(lang, "btn_all_time"), callback_data="stats:all"),
          InlineKeyboardButton(text=t(lang, "btn_compare"), callback_data="stats:compare")],
+        [InlineKeyboardButton(text=t(lang, "btn_skills_map"), callback_data="stats:skills")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="main:back")],
     ])
 
@@ -129,6 +130,30 @@ def _compute_streak(wins: list[Win]) -> int:
             day -= timedelta(days=1)
         return streak
     return 0
+
+
+def _build_skills_map(wins: list[Win], lang: str) -> str:
+    counts: dict[str, int] = {}
+    for win in wins:
+        tag = win.tag or "other"
+        counts[tag] = counts.get(tag, 0) + 1
+
+    if not counts:
+        return t(lang, "stats_skills_empty")
+
+    total = sum(counts.values())
+    max_count = max(counts.values())
+    lines = [t(lang, "stats_skills_title", total=total), ""]
+    for tag in _TAG_ORDER:
+        n = counts.get(tag, 0)
+        if n == 0:
+            continue
+        filled = round(n / max_count * 10)
+        bar = "█" * filled + "░" * (10 - filled)
+        lines.append(f"{t(lang, f'tag_{tag}')}")
+        lines.append(f"{bar}  {n}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
 
 
 def _format_tag_breakdown(wins: list[Win], lang: str) -> str | None:
@@ -369,3 +394,14 @@ async def show_period_ai_review(query: CallbackQuery, session, bot: Bot) -> None
     except Exception:
         digest = "\n".join(f"— {w.raw_text}" for w in recent)
     await edit_or_answer(msg, digest, get_back_to_stats_keyboard(lang))
+
+
+@router.callback_query(F.data == "stats:skills")
+async def show_skills_map(query: CallbackQuery, session) -> None:
+    user, wins = await _get_user_and_wins(query, session)
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
+        return
+    await query.answer()
+    await edit_or_answer(query.message, _build_skills_map(wins, lang), get_back_to_stats_keyboard(lang))

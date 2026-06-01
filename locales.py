@@ -256,6 +256,9 @@ TEXTS = {
         "goal_progress_line": "{count} moments · {days} days",
 
         "stats_streak": "🔥 Streak: {n} days",
+        "btn_skills_map": "🗺 Skill Map",
+        "stats_skills_title": "🗺 Skill Map · {total} moments",
+        "stats_skills_empty": "No moments recorded yet.",
         "btn_ai_review": "🤖 AI review",
         "stats_ai_loading": "Generating review...",
         "stats_ai_empty": "No moments recorded for this period.",
@@ -535,6 +538,9 @@ TEXTS = {
         "goal_progress_line": "{count} моментов · {days} дней",
 
         "stats_streak": "🔥 Серия: {n} дней",
+        "btn_skills_map": "🗺 Карта навыков",
+        "stats_skills_title": "🗺 Карта навыков · {total} моментов",
+        "stats_skills_empty": "Моментов пока нет.",
         "btn_ai_review": "🤖 AI-обзор",
         "stats_ai_loading": "Генерирую обзор...",
         "stats_ai_empty": "За этот период моментов нет.",
