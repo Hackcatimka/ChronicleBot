@@ -10,10 +10,12 @@ from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import select
 
 from ai import ask_weekly_narrative
+from config import settings
 from db.models import User, Win
 from locales import t
 from ratelimit import check as rate_check
-from utils import edit_or_answer, format_date
+from stickers import send_random_sticker
+from utils import edit_or_answer, format_date, try_delete
 
 router = Router()
 
@@ -386,14 +388,23 @@ async def show_period_ai_review(query: CallbackQuery, session, bot: Bot) -> None
         await edit_or_answer(query.message, t(lang, "stats_ai_empty"), get_back_to_stats_keyboard(lang))
         return
 
+    chat_id = query.message.chat.id
     msg = await edit_or_answer(query.message, t(lang, "stats_ai_loading"))
     try:
-        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
             wins_with_tags = [(w.raw_text, w.tag or "other") for w in recent]
             digest = await ask_weekly_narrative(user.tone, wins_with_tags, lang, period=period)
     except Exception:
         digest = "\n".join(f"— {w.raw_text}" for w in recent)
-    await edit_or_answer(msg, digest, get_back_to_stats_keyboard(lang))
+
+    stickers_enabled = getattr(user, "stickers_enabled", False)
+    if stickers_enabled:
+        await try_delete(msg)
+        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await bot.send_message(chat_id, digest)
+    else:
+        await edit_or_answer(msg, digest)
+    await bot.send_message(chat_id, t(lang, "stats_title"), reply_markup=get_stats_menu_keyboard(lang))
 
 
 @router.callback_query(F.data == "stats:skills")

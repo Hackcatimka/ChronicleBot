@@ -313,10 +313,11 @@ async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
     wins_texts = [win.raw_text for win in goal.wins]
 
     await query.answer()
+    chat_id = query.message.chat.id
     msg = await edit_or_answer(query.message, t(lang, "goal_analysing"))
 
     try:
-        async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
+        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
             analysis = await ask_goal_progress(
                 user.tone, goal.title, wins_texts, days_elapsed, deadline_days, lang
             )
@@ -324,7 +325,14 @@ async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
         logger.warning("AI goal analysis failed for user %s goal %s", user.id, goal_id, exc_info=True)
         analysis = t(lang, "goal_analysis_error")
 
-    await edit_or_answer(msg, analysis, get_goal_detail_buttons(lang, goal_id))
+    stickers_enabled = getattr(user, "stickers_enabled", False)
+    if stickers_enabled:
+        await try_delete(msg)
+        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await bot.send_message(chat_id, analysis)
+    else:
+        await edit_or_answer(msg, analysis)
+    await bot.send_message(chat_id, goal.title, reply_markup=get_goal_detail_buttons(lang, goal_id))
 
 
 @router.callback_query(F.data.startswith("goal:done:"))
