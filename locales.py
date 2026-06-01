@@ -256,9 +256,9 @@ TEXTS = {
         "goal_progress_line": "{count} moments · {days} days",
 
         "stats_streak": "🔥 Streak: {n} days",
-        "btn_weekly_digest": "📋 Digest",
-        "stats_digest_loading": "Loading your weekly digest...",
-        "stats_digest_empty": "No moments in the last 7 days.",
+        "btn_ai_review": "🤖 AI review",
+        "stats_ai_loading": "Generating review...",
+        "stats_ai_empty": "No moments recorded for this period.",
 
         "goals_suggest_btn": "💡 Suggest a goal",
         "goals_suggest_no_data": "Not enough moments yet to suggest a goal. Keep writing!",
@@ -535,9 +535,9 @@ TEXTS = {
         "goal_progress_line": "{count} моментов · {days} дней",
 
         "stats_streak": "🔥 Серия: {n} дней",
-        "btn_weekly_digest": "📋 Дайджест",
-        "stats_digest_loading": "Загружаю дайджест...",
-        "stats_digest_empty": "За последние 7 дней моментов нет.",
+        "btn_ai_review": "🤖 AI-обзор",
+        "stats_ai_loading": "Генерирую обзор...",
+        "stats_ai_empty": "За этот период моментов нет.",
 
         "goals_suggest_btn": "💡 Предложить цель",
         "goals_suggest_no_data": "Запиши хотя бы 5 моментов чтобы получить предложение цели.",

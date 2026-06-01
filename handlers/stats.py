@@ -24,13 +24,19 @@ def get_stats_menu_keyboard(lang: str) -> InlineKeyboardMarkup:
          InlineKeyboardButton(text=t(lang, "btn_this_month"), callback_data="stats:month")],
         [InlineKeyboardButton(text=t(lang, "btn_all_time"), callback_data="stats:all"),
          InlineKeyboardButton(text=t(lang, "btn_compare"), callback_data="stats:compare")],
-        [InlineKeyboardButton(text=t(lang, "btn_weekly_digest"), callback_data="stats:digest")],
         [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="main:back")],
     ])
 
 
 def get_back_to_stats_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_back_to_stats"), callback_data="stats:back")],
+    ])
+
+
+def get_back_to_stats_with_ai(lang: str, period: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_ai_review"), callback_data=f"stats:ai:{period}")],
         [InlineKeyboardButton(text=t(lang, "btn_back_to_stats"), callback_data="stats:back")],
     ])
 
@@ -253,7 +259,7 @@ async def show_this_week(query: CallbackQuery, session) -> None:
     start, end = _get_period_range("this_week")
     filtered = [win for win in wins if start <= win.created_at < end]
     await query.answer()
-    await edit_or_answer(query.message, _build_period_report(t(lang, "period_this_week"), filtered, 7, lang), get_back_to_stats_keyboard(lang))
+    await edit_or_answer(query.message, _build_period_report(t(lang, "period_this_week"), filtered, 7, lang), get_back_to_stats_with_ai(lang, "week"))
 
 
 @router.callback_query(F.data == "stats:month")
@@ -269,7 +275,7 @@ async def show_this_month(query: CallbackQuery, session) -> None:
     days_in_month = calendar.monthrange(start.year, start.month)[1]
     month_name = _month_name(start.month, lang)
     await query.answer()
-    await edit_or_answer(query.message, _build_period_report(f"{month_name} {start.year}", filtered, days_in_month, lang), get_back_to_stats_keyboard(lang))
+    await edit_or_answer(query.message, _build_period_report(f"{month_name} {start.year}", filtered, days_in_month, lang), get_back_to_stats_with_ai(lang, "month"))
 
 
 @router.callback_query(F.data == "stats:all")
@@ -334,8 +340,8 @@ async def choose_second_period(query: CallbackQuery, state: FSMContext, session)
     await state.clear()
 
 
-@router.callback_query(F.data == "stats:digest")
-async def show_weekly_digest(query: CallbackQuery, session, bot: Bot) -> None:
+@router.callback_query(F.data.startswith("stats:ai:"))
+async def show_period_ai_review(query: CallbackQuery, session, bot: Bot) -> None:
     if not rate_check(query.from_user.id):
         await query.answer(t("en", "rate_limited"), show_alert=True)
         return
@@ -345,19 +351,21 @@ async def show_weekly_digest(query: CallbackQuery, session, bot: Bot) -> None:
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
-    recent = [w for w in wins if w.created_at >= cutoff]
+    period = query.data.split(":", 2)[2]  # "week" or "month"
+    period_key = "this_week" if period == "week" else "this_month"
+    start, end = _get_period_range(period_key)
+    recent = [w for w in wins if start <= w.created_at < end]
     await query.answer()
 
     if not recent:
-        await edit_or_answer(query.message, t(lang, "stats_digest_empty"), get_back_to_stats_keyboard(lang))
+        await edit_or_answer(query.message, t(lang, "stats_ai_empty"), get_back_to_stats_keyboard(lang))
         return
 
-    msg = await edit_or_answer(query.message, t(lang, "stats_digest_loading"))
+    msg = await edit_or_answer(query.message, t(lang, "stats_ai_loading"))
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             wins_with_tags = [(w.raw_text, w.tag or "other") for w in recent]
-            digest = await ask_weekly_narrative(user.tone, wins_with_tags, lang)
+            digest = await ask_weekly_narrative(user.tone, wins_with_tags, lang, period=period)
     except Exception:
         digest = "\n".join(f"— {w.raw_text}" for w in recent)
     await edit_or_answer(msg, digest, get_back_to_stats_keyboard(lang))
