@@ -1,8 +1,16 @@
 import logging
+import re
 
 from openai import AsyncOpenAI
 
 from config import settings
+
+# Detects CJK characters that the model sometimes leaks into non-Chinese responses
+_CJK_RE = re.compile(
+    "[⺀-⻿⼀-⿟　-〿"
+    "㇀-㇯㈀-㏿㐀-䶿"
+    "一-鿿豈-﫿︰-﹏]"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -33,23 +41,41 @@ def _choose_style(tone: str) -> str:
 
 
 def _language_instruction(lang: str) -> str:
-    return "Respond in Russian." if lang == "ru" else "Respond in English."
+    if lang == "ru":
+        return (
+            "Respond in Russian. "
+            "Use only Cyrillic letters, digits, and standard punctuation. "
+            "Never output Chinese, Japanese, Korean, or any other non-Cyrillic characters."
+        )
+    return (
+        "Respond in English. "
+        "Use only Latin letters, digits, and standard punctuation. "
+        "Never output Chinese, Japanese, Korean, or any other non-Latin characters."
+    )
 
 
 async def _create_completion(system_prompt: str, user_prompt: str, max_tokens: int = 250) -> str:
-    try:
-        response = await client.chat.completions.create(
-            model=MODEL,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            max_tokens=max_tokens,
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        logger.error("xAI API error: %s", e, exc_info=True)
-        raise
+    for attempt in range(2):
+        try:
+            response = await client.chat.completions.create(
+                model=MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                max_tokens=max_tokens,
+            )
+            text = response.choices[0].message.content.strip()
+            if not _CJK_RE.search(text):
+                return text
+            if attempt == 0:
+                logger.warning("CJK characters detected in AI response, retrying")
+                continue
+            logger.warning("CJK characters still present after retry, stripping")
+            return _CJK_RE.sub("", text)
+        except Exception as e:
+            logger.error("xAI API error: %s", e, exc_info=True)
+            raise
 
 
 async def ask_praise(tone: str, win_text: str, count: int, lang: str) -> str:
