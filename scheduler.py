@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from ai import ask_weekly_narrative
 from locales import t
+from utils import split_tags
 
 from db.engine import async_session
 from db.models import Goal, Reminder, User, Win
@@ -51,7 +52,7 @@ async def _send_weekly_digest(user: User, session) -> str:
 
     if wins:
         try:
-            wins_with_tags = [(win.raw_text, win.tag or "other") for win in wins]
+            wins_with_tags = [(win.raw_text, split_tags(win.tag)[0]) for win in wins]
             return await ask_weekly_narrative(user.tone, wins_with_tags, user.language)
         except Exception:
             logger.exception("Failed to generate AI weekly narrative for user %s", user.id)

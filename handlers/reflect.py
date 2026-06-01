@@ -13,7 +13,7 @@ from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
 from stickers import send_mood_sticker
-from utils import edit_or_answer, try_delete
+from utils import edit_or_answer, split_tags, try_delete
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -44,7 +44,7 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
     msg = await edit_or_answer(query.message, t(lang, "reflect_analysing"))
 
     try:
-        wins_with_tags = [(win.raw_text, win.tag or "other") for win in wins]
+        wins_with_tags = [(win.raw_text, split_tags(win.tag)[0]) for win in wins]
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):
             analysis = await ask_reflect_analysis(user.tone, wins_with_tags, lang)
     except Exception:

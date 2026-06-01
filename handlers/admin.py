@@ -9,6 +9,7 @@ from sqlalchemy import distinct, exists, func, select
 from config import settings
 from db.models import Goal, Reminder, User, Win
 from locales import t
+from utils import split_tags
 
 _TAG_EMOJI = {
     "work": "💼", "health": "💪", "learning": "📚", "personal": "🙂",
@@ -91,14 +92,18 @@ async def _build_stats(session, period: str) -> str:
         select(func.count(Win.id)).where(Win.created_at >= start)
     )
 
-    tag_rows = (await session.execute(
+    _raw_tag_rows = (await session.execute(
         select(Win.tag, func.count(Win.id))
         .where(Win.created_at >= start, Win.tag.isnot(None))
         .group_by(Win.tag)
-        .order_by(func.count(Win.id).desc())
-        .limit(3)
     )).all()
-    top_tags = ", ".join(f"{tag} ({cnt})" for tag, cnt in tag_rows) or "—"
+    _tag_counts: dict[str, int] = {}
+    for _raw_tag, _cnt in _raw_tag_rows:
+        for _tg in split_tags(_raw_tag):
+            _tag_counts[_tg] = _tag_counts.get(_tg, 0) + _cnt
+    top_tags = ", ".join(
+        f"{tg} ({cnt})" for tg, cnt in sorted(_tag_counts.items(), key=lambda x: -x[1])[:3]
+    ) or "—"
 
     goal_rows = (await session.execute(
         select(Goal.status, func.count(Goal.id)).group_by(Goal.status)
@@ -181,22 +186,26 @@ async def _build_moments_detail(session, period: str) -> str:
         cnt = day_map.get(d, 0)
         lines.append(f"  {_RU_DAYS[d.weekday()]} {d.strftime('%d.%m')}  {_bar(cnt, max_day)}  {cnt}")
 
-    # Full tag breakdown
-    tag_rows = (await session.execute(
+    # Full tag breakdown (expand comma-separated tags)
+    raw_tag_rows = (await session.execute(
         select(Win.tag, func.count(Win.id).label("cnt"))
         .where(Win.created_at >= start, Win.tag.isnot(None))
         .group_by(Win.tag)
-        .order_by(func.count(Win.id).desc())
     )).all()
-    total_tagged = sum(r.cnt for r in tag_rows)
-    max_tag = tag_rows[0].cnt if tag_rows else 1
+    tag_expanded: dict[str, int] = {}
+    for row in raw_tag_rows:
+        for tg in split_tags(row.tag):
+            tag_expanded[tg] = tag_expanded.get(tg, 0) + row.cnt
+    tag_expanded_sorted = sorted(tag_expanded.items(), key=lambda x: -x[1])
+    total_tagged = sum(tag_expanded.values())
+    max_tag = tag_expanded_sorted[0][1] if tag_expanded_sorted else 1
     lines.append("")
     lines.append("<b>🏷 Теги</b>")
-    if tag_rows:
-        for row in tag_rows:
-            pct = round(row.cnt / total_tagged * 100) if total_tagged else 0
-            emoji = _TAG_EMOJI.get(row.tag, "•")
-            lines.append(f"  {emoji} {row.tag:<10} {_bar(row.cnt, max_tag)}  {row.cnt} ({pct}%)")
+    if tag_expanded_sorted:
+        for tg, cnt in tag_expanded_sorted:
+            pct = round(cnt / total_tagged * 100) if total_tagged else 0
+            emoji = _TAG_EMOJI.get(tg, "•")
+            lines.append(f"  {emoji} {tg:<10} {_bar(cnt, max_tag)}  {cnt} ({pct}%)")
     else:
         lines.append("  нет данных")
 

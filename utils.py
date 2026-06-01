@@ -4,6 +4,13 @@ from aiogram import Bot
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import InlineKeyboardMarkup, Message
 
+def split_tags(tag: str | None) -> list[str]:
+    if not tag:
+        return ["other"]
+    parts = [t.strip() for t in tag.split(",") if t.strip()]
+    return parts if parts else ["other"]
+
+
 _RU_MONTHS_SHORT = ["", "янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"]
 _RU_WEEKDAYS_SHORT = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"]
 

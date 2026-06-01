@@ -27,7 +27,7 @@ from keyboards import (
 )
 from locales import t
 from scheduler import remove_deadline_job, schedule_deadline_job
-from utils import edit_or_answer, edit_stored, format_date, try_delete
+from utils import edit_or_answer, edit_stored, format_date, split_tags, try_delete
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -594,25 +594,25 @@ async def suggest_goal(query: CallbackQuery, state: FSMContext, session, bot: Bo
         await query.answer(t(lang, "user_not_found"), show_alert=True)
         return
 
-    row = (await session.execute(
-        select(Win.tag, func.count(Win.id).label("cnt"))
-        .filter(Win.user_id == user.id, Win.tag.isnot(None))
-        .group_by(Win.tag)
-        .order_by(func.count(Win.id).desc())
-        .limit(1)
-    )).first()
+    all_wins = (await session.scalars(
+        select(Win).where(Win.user_id == user.id, Win.tag.isnot(None))
+    )).all()
 
-    if row is None or row.cnt < 5:
+    tag_counts: dict[str, int] = {}
+    tag_wins: dict[str, list[Win]] = {}
+    for win in all_wins:
+        for tg in split_tags(win.tag):
+            tag_counts[tg] = tag_counts.get(tg, 0) + 1
+            tag_wins.setdefault(tg, []).append(win)
+
+    if not tag_counts or max(tag_counts.values()) < 5:
         await query.answer()
         goals = await _get_active_goals(user.id, session)
         await edit_or_answer(query.message, t(lang, "goals_suggest_no_data"), get_goal_menu_keyboard(lang, bool(goals)))
         return
 
-    top_tag = row.tag
-    recent_wins = await session.scalars(
-        select(Win).filter_by(user_id=user.id, tag=top_tag).order_by(Win.created_at.desc()).limit(5)
-    )
-    win_texts = [w.raw_text for w in recent_wins.all()]
+    top_tag = max(tag_counts, key=tag_counts.__getitem__)
+    win_texts = [w.raw_text for w in sorted(tag_wins[top_tag], key=lambda w: w.created_at, reverse=True)[:5]]
     await query.answer()
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=query.message.chat.id):

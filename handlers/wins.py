@@ -8,7 +8,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram.utils.chat_action import ChatActionSender
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from ai import ask_praise, classify_intent, classify_tag, suggest_goal_title
 from dateparse import extract_win_date
@@ -21,7 +21,7 @@ from db.models import Goal, User, Win, WinGoal
 from keyboards import get_goal_suggestion_keyboard, get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
 from stickers import TAG_TO_MOOD, send_mood_sticker
-from utils import edit_or_answer, edit_stored, try_delete
+from utils import edit_or_answer, edit_stored, split_tags, try_delete
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -192,9 +192,17 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
     session.add(user)
     await session.commit()
 
+    tags = split_tags(tag)
+    primary_tag = tags[0]
     count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id))
-    tag_count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id, tag=tag))
-    tag_label = t(lang, f"tag_{tag}")
+    tag_count = await session.scalar(
+        select(func.count()).select_from(Win)
+        .where(
+            Win.user_id == user.id,
+            or_(Win.tag == primary_tag, Win.tag.like(f"{primary_tag},%"), Win.tag.like(f"%,{primary_tag}")),
+        )
+    )
+    tag_label = "  ".join(t(lang, f"tag_{tg}") for tg in tags)
     stickers_enabled = getattr(user, "stickers_enabled", False)
     chat_id = query.message.chat.id
     await query.answer()
@@ -216,7 +224,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
 
     if stickers_enabled:
         await try_delete(query.message)
-        await send_mood_sticker(bot, chat_id, TAG_TO_MOOD.get(tag), settings.STICKER_SET_NAME, True)
+        await send_mood_sticker(bot, chat_id, TAG_TO_MOOD.get(primary_tag), settings.STICKER_SET_NAME, True)
         await bot.send_message(chat_id, result_text)
     else:
         await edit_or_answer(query.message, result_text)
@@ -224,19 +232,24 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
 
     if tag_count == _GOAL_SUGGESTION_THRESHOLD:
         recent_wins = await session.scalars(
-            select(Win).filter_by(user_id=user.id, tag=tag).order_by(Win.created_at.desc()).limit(5)
+            select(Win)
+            .where(
+                Win.user_id == user.id,
+                or_(Win.tag == primary_tag, Win.tag.like(f"{primary_tag},%"), Win.tag.like(f"%,{primary_tag}")),
+            )
+            .order_by(Win.created_at.desc()).limit(5)
         )
         win_texts = [w.raw_text for w in recent_wins.all()]
         try:
             async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
-                suggested_title = await suggest_goal_title(tag, win_texts, lang)
+                suggested_title = await suggest_goal_title(primary_tag, win_texts, lang)
         except Exception:
             logger.warning("Goal suggestion failed for user %s", user.id, exc_info=True)
             await state.clear()
             return
         suggestion_msg = await bot.send_message(
             chat_id,
-            t(lang, "goal_suggestion", tag=t(lang, f"tag_{tag}"), title=suggested_title),
+            t(lang, "goal_suggestion", tag=t(lang, f"tag_{primary_tag}"), title=suggested_title),
             reply_markup=get_goal_suggestion_keyboard(lang),
             parse_mode="HTML",
         )

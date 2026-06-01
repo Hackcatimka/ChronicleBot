@@ -15,7 +15,7 @@ from db.models import User, Win
 from locales import t
 from ratelimit import check as rate_check
 from stickers import send_mood_sticker
-from utils import edit_or_answer, format_date, try_delete
+from utils import edit_or_answer, format_date, split_tags, try_delete
 
 router = Router()
 
@@ -137,8 +137,8 @@ def _compute_streak(wins: list[Win]) -> int:
 def _build_skills_map(wins: list[Win], lang: str) -> str:
     counts: dict[str, int] = {}
     for win in wins:
-        tag = win.tag or "other"
-        counts[tag] = counts.get(tag, 0) + 1
+        for tag in split_tags(win.tag):
+            counts[tag] = counts.get(tag, 0) + 1
 
     if not counts:
         return t(lang, "stats_skills_empty")
@@ -161,8 +161,8 @@ def _build_skills_map(wins: list[Win], lang: str) -> str:
 def _format_tag_breakdown(wins: list[Win], lang: str) -> str | None:
     counts: dict[str, int] = {}
     for win in wins:
-        tag = win.tag or "other"
-        counts[tag] = counts.get(tag, 0) + 1
+        for tag in split_tags(win.tag):
+            counts[tag] = counts.get(tag, 0) + 1
     if not counts:
         return None
     parts = [f"{t(lang, f'tag_{tag}')} · {n}" for tag in _TAG_ORDER if (n := counts.get(tag))]
@@ -392,7 +392,7 @@ async def show_period_ai_review(query: CallbackQuery, session, bot: Bot) -> None
     msg = await edit_or_answer(query.message, t(lang, "stats_ai_loading"))
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
-            wins_with_tags = [(w.raw_text, w.tag or "other") for w in recent]
+            wins_with_tags = [(w.raw_text, split_tags(w.tag)[0]) for w in recent]
             digest = await ask_weekly_narrative(user.tone, wins_with_tags, lang, period=period)
     except Exception:
         digest = "\n".join(f"— {w.raw_text}" for w in recent)
