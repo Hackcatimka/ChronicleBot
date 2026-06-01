@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     BOT_TOKEN: str
     DATABASE_URL: str
     GROQ_API_KEY: str
+    ADMIN_TG_ID: int
     SENTRY_DSN: str = ""
     ENV: str = "production"
     STICKER_SET_NAME: str = "catsunicmass"

@@ -6,10 +6,9 @@ from aiogram.filters import Command
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import distinct, exists, func, select
 
+from config import settings
 from db.models import Goal, Reminder, User, Win
 from locales import t
-
-ADMIN_TG_ID = 698310322
 
 _TAG_EMOJI = {
     "work": "💼", "health": "💪", "learning": "📚", "personal": "🙂",
@@ -339,7 +338,7 @@ async def _build_users_detail(session, period: str) -> str:
 
 @router.message(Command("admin"))
 async def cmd_admin(message: Message, session) -> None:
-    if message.from_user.id != ADMIN_TG_ID:
+    if message.from_user.id != settings.ADMIN_TG_ID:
         return
     text = await _build_stats(session, "week")
     await message.answer(text, reply_markup=_admin_keyboard("week"))
@@ -347,7 +346,7 @@ async def cmd_admin(message: Message, session) -> None:
 
 @router.callback_query(F.data.startswith("admin:period:"))
 async def switch_period(query: CallbackQuery, session) -> None:
-    if query.from_user.id != ADMIN_TG_ID:
+    if query.from_user.id != settings.ADMIN_TG_ID:
         await query.answer()
         return
     period = query.data.split(":", 2)[2]
@@ -358,7 +357,7 @@ async def switch_period(query: CallbackQuery, session) -> None:
 
 @router.callback_query(F.data.startswith("admin:users:"))
 async def show_users_detail(query: CallbackQuery, session) -> None:
-    if query.from_user.id != ADMIN_TG_ID:
+    if query.from_user.id != settings.ADMIN_TG_ID:
         await query.answer()
         return
     period = query.data.split(":", 2)[2]
@@ -369,7 +368,7 @@ async def show_users_detail(query: CallbackQuery, session) -> None:
 
 @router.callback_query(F.data.startswith("admin:moments:"))
 async def show_moments_detail(query: CallbackQuery, session) -> None:
-    if query.from_user.id != ADMIN_TG_ID:
+    if query.from_user.id != settings.ADMIN_TG_ID:
         await query.answer()
         return
     period = query.data.split(":", 2)[2]
@@ -380,7 +379,7 @@ async def show_moments_detail(query: CallbackQuery, session) -> None:
 
 @router.callback_query(F.data == "admin:nudge")
 async def send_nudge(query: CallbackQuery, session) -> None:
-    if query.from_user.id != ADMIN_TG_ID:
+    if query.from_user.id != settings.ADMIN_TG_ID:
         await query.answer()
         return
 
