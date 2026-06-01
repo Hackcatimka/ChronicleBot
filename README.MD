@@ -6,11 +6,13 @@ Telegram bot that saves your moments, tracks your goals, and reflects your progr
 
 ## Features
 
-- **Moment recording** — just write what went well, AI reacts to the specific thing you did
-- **Goals** — create goals, link moments to them, get AI progress analysis
+- **Moment recording** — just write what went well, AI reacts to the specific thing you did; the AI response stays in chat history as a permanent message
+- **Goals** — create goals, link moments to them, edit title/deadline/category, get AI progress analysis
+- **Goal suggestion** — after 5 moments in the same category, AI suggests a matching goal automatically
 - **Reflect** — AI analysis of your last 30 days: patterns, strengths, what's next
-- **Time Machine** — revisit random past moments with AI reflection
-- **Stats** — this week, this month, all time, period comparison
+- **Time Machine** — revisit random past moments with AI reflection; edit or delete moments in place
+- **Stats** — this week, this month, all time, period comparison; week and month views include an AI narrative review
+- **Streak tracking** — all-time view shows your current daily streak
 - **Reminders** — morning check-in, evening check-in, weekly digest with AI narrative
 - **Tones** — Friend, Coach, or Mirror — changes how the AI talks to you
 - **Stickers** — optional Catification mode: random sticker appears above each AI response
@@ -50,11 +52,11 @@ chronicle/
 │   └── engine.py         # Async engine and session
 ├── handlers/
 │   ├── start.py          # /start, onboarding (language → tone → timezone)
-│   ├── wins.py           # Recording moments, linking to goals
-│   ├── goals.py          # Goals — create, view, complete, abandon
-│   ├── stats.py          # Stats and period comparison
+│   ├── wins.py           # Recording moments, linking to goals, goal suggestion flow
+│   ├── goals.py          # Goals — create, edit, view, complete, abandon; AI suggestion
+│   ├── stats.py          # Stats, period comparison, per-period AI review
 │   ├── reflect.py        # 30-day AI reflection
-│   ├── then.py           # Time machine
+│   ├── then.py           # Time machine — view, edit, delete past moments
 │   ├── reminders.py      # Reminders and settings
 │   └── admin.py          # Admin panel (/admin, restricted by tg_id)
 ├── alembic/              # Database migrations
