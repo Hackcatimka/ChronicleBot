@@ -226,6 +226,13 @@ async def delete_moment_confirm(query: CallbackQuery, session) -> None:
         return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer()
+        return
+    win = await session.scalar(select(Win).filter_by(id=win_id, user_id=user.id))
+    if win is None:
+        await query.answer()
+        return
     keyboard = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text=t(lang, "btn_delete_confirm"), callback_data=f"search:delete:confirm:{win_id}"),
          InlineKeyboardButton(text=t(lang, "btn_cancel"), callback_data="search:back")],

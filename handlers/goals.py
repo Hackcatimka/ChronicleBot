@@ -375,6 +375,13 @@ async def edit_goal_menu(query: CallbackQuery, session) -> None:
     goal_id = int(query.data.split(":", 2)[2])
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer()
+        return
+    goal = await session.scalar(select(Goal).filter_by(id=goal_id, user_id=user.id))
+    if goal is None:
+        await query.answer(t(lang, "goal_not_found"), show_alert=True)
+        return
     await query.answer()
     await edit_or_answer(query.message, t(lang, "goal_edit_menu"), get_goal_edit_keyboard(lang, goal_id))
 
@@ -520,6 +527,9 @@ async def manage_goal_wins(query: CallbackQuery, session) -> None:
     goal_id = int(query.data.split(":", 2)[2])
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer()
+        return
     goal = await session.scalar(
         select(Goal).filter_by(id=goal_id, user_id=user.id)
         .options(selectinload(Goal.wins))
@@ -544,10 +554,17 @@ async def manage_goal_wins(query: CallbackQuery, session) -> None:
 
 @router.callback_query(F.data.startswith("win:unlink:"))
 async def unlink_win_from_goal(query: CallbackQuery, session) -> None:
-    parts = query.data.split(":")
-    win_id, goal_id = int(parts[2]), int(parts[3])
+    try:
+        parts = query.data.split(":")
+        win_id, goal_id = int(parts[2]), int(parts[3])
+    except (ValueError, IndexError):
+        await query.answer()
+        return
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer()
+        return
     win_goal = await session.scalar(
         select(WinGoal)
         .join(Win, WinGoal.win_id == Win.id)
@@ -559,10 +576,12 @@ async def unlink_win_from_goal(query: CallbackQuery, session) -> None:
             Goal.user_id == user.id,
         )
     )
-    if win_goal:
-        await session.delete(win_goal)
-        await session.commit()
+    if not win_goal:
+        await query.answer()
+        return
     await query.answer()
+    await session.delete(win_goal)
+    await session.commit()
     await edit_or_answer(query.message, t(lang, "win_unlinked"), get_goal_detail_buttons(lang, goal_id))
 
 

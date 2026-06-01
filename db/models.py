@@ -1,4 +1,4 @@
-from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import BigInteger, Boolean, Column, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.orm import declarative_base, relationship
 
 Base = declarative_base()
@@ -53,6 +53,7 @@ class Goal(Base):
 
 class WinGoal(Base):
     __tablename__ = "win_goals"
+    __table_args__ = (UniqueConstraint("win_id", "goal_id"),)
 
     id = Column(Integer, primary_key=True, index=True)
     win_id = Column(Integer, ForeignKey("wins.id", ondelete="CASCADE"), nullable=False, index=True)
