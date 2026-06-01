@@ -227,6 +227,7 @@ TEXTS = {
         "search_showing": "Showing {start}–{end} of {total}",
         "btn_search_more": "Load more",
         "btn_search_all": "📋 All moments",
+        "btn_search_again": "🔍 New search",
         "search_all_title": "📋 All moments — {total} total",
         "search_all_empty": "No moments recorded yet.",
 
@@ -514,6 +515,7 @@ TEXTS = {
         "search_showing": "Показано {start}–{end} из {total}",
         "btn_search_more": "Показать ещё",
         "btn_search_all": "📋 Все моменты",
+        "btn_search_again": "🔍 Новый поиск",
         "search_all_title": "📋 Все моменты — {total} всего",
         "search_all_empty": "Моментов пока нет.",
 

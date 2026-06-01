@@ -200,20 +200,48 @@ def get_search_prompt_keyboard(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
-def get_search_results_keyboard(lang: str, has_more: bool) -> InlineKeyboardMarkup:
-    buttons = []
+def _edit_buttons_rows(win_ids: list[int]) -> list[list[InlineKeyboardButton]]:
+    rows = []
+    row = []
+    for i, win_id in enumerate(win_ids, start=1):
+        row.append(InlineKeyboardButton(text=f"✏️ {i}", callback_data=f"search:view:{win_id}"))
+        if len(row) == 3:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    return rows
+
+
+def get_search_results_keyboard(lang: str, has_more: bool, win_ids: list[int] | None = None) -> InlineKeyboardMarkup:
+    buttons = _edit_buttons_rows(win_ids or [])
     if has_more:
         buttons.append([InlineKeyboardButton(text=t(lang, "btn_search_more"), callback_data="search:more")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
-def get_search_all_keyboard(lang: str, has_more: bool) -> InlineKeyboardMarkup:
-    buttons = []
+def get_search_all_keyboard(lang: str, has_more: bool, win_ids: list[int] | None = None) -> InlineKeyboardMarkup:
+    buttons = _edit_buttons_rows(win_ids or [])
     if has_more:
         buttons.append([InlineKeyboardButton(text=t(lang, "btn_search_more"), callback_data="search:all:more")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_search_moment_keyboard(lang: str, win_id: int) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_edit_win"), callback_data=f"search:edit:{win_id}"),
+         InlineKeyboardButton(text=t(lang, "btn_delete_win"), callback_data=f"search:delete:{win_id}")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")],
+    ])
+
+
+def get_search_after_edit_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_search_again"), callback_data="menu:search")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")],
+    ])
 
 
 def get_category_keyboard(lang: str) -> InlineKeyboardMarkup:
