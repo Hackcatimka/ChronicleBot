@@ -51,11 +51,12 @@ async def show_reflect(query: CallbackQuery, session, bot: Bot) -> None:
         logger.warning("AI reflect analysis failed for user %s", user.id, exc_info=True)
         analysis = t(lang, "reflect_error")
 
-    stickers_enabled = getattr(user, "stickers_enabled", True)
+    stickers_enabled = getattr(user, "stickers_enabled", False)
     chat_id = query.message.chat.id
     if stickers_enabled:
         await try_delete(msg)
         await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
-        await bot.send_message(chat_id, analysis, reply_markup=get_main_menu_keyboard(lang))
+        await bot.send_message(chat_id, analysis)
     else:
-        await edit_or_answer(msg, analysis, get_main_menu_keyboard(lang))
+        await edit_or_answer(msg, analysis)
+    await bot.send_message(chat_id, t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))

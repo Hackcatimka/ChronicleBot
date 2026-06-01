@@ -106,6 +106,7 @@ TEXTS = {
         "no_memories": "⏪ Time machine\n\nNo memories yet. Keep recording your moments —\nin a week I'll have something to show you.",
         "memory": "⏪ Time machine\n\nOn {date} you wrote:\n\n\"{text}\"\n\nThat was {days} days ago.",
         "only_memory": "That's the only memory I have so far. Keep going! 🏆",
+        "time_machine_nav": "📅 {date}",
         "btn_show_another": "🎲 Show another",
 
         "no_goals": "🎯 My goals\n\nNo goals yet. Let's set one!",
@@ -392,6 +393,7 @@ TEXTS = {
         "no_memories": "⏪ Машина времени\n\nВоспоминаний пока нет. Записывай моменты —\nчерез неделю будет что показать.",
         "memory": "⏪ Машина времени\n\n{date} ты написал:\n\n\"{text}\"\n\nЭто было {days} дней назад.",
         "only_memory": "Это пока единственное воспоминание. Продолжай! 🏆",
+        "time_machine_nav": "📅 {date}",
         "btn_show_another": "🎲 Другое воспоминание",
 
         "no_goals": "🎯 Мои цели\n\nЦелей пока нет. Давай добавим!",

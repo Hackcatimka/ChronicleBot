@@ -3,7 +3,9 @@ import random
 from datetime import datetime, timedelta, timezone
 
 from aiogram import Bot, F, Router
+from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import select
@@ -16,10 +18,6 @@ from locales import t
 from ratelimit import check as rate_check
 from stickers import send_random_sticker
 from utils import edit_or_answer, edit_stored, format_date, try_delete
-
-from aiogram.filters import StateFilter
-from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -85,6 +83,44 @@ async def _select_random_old_win(session, query: CallbackQuery, exclude_id: int 
     return user, win, ids
 
 
+async def _show_reflection(
+    bot: Bot,
+    query: CallbackQuery,
+    state: FSMContext,
+    user,
+    win: Win,
+    lang: str,
+) -> None:
+    """Show reflection text as persistent message, send nav keyboard as separate message."""
+    chat_id = query.message.chat.id
+    days_ago = (datetime.now(timezone.utc).date() - win.created_at.date()).days
+    memory_text = t(lang, "memory", date=_format_date(win.created_at, lang), text=win.raw_text, days=days_ago)
+    stickers_enabled = getattr(user, "stickers_enabled", False)
+
+    # Show moment text first, then update with AI reflection
+    msg = await edit_or_answer(query.message, memory_text)
+    try:
+        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
+            reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
+        final_text = f"{memory_text}\n\n{reflection}"
+        if stickers_enabled:
+            await try_delete(msg)
+            await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+            await bot.send_message(chat_id, final_text)
+        else:
+            await edit_or_answer(msg, final_text)
+    except Exception:
+        logger.warning("AI reflection failed for user %s win %s", user.id, win.id, exc_info=True)
+
+    # Navigation as separate persistent message
+    nav_msg = await bot.send_message(
+        chat_id,
+        t(lang, "time_machine_nav", date=_format_date(win.created_at, lang)),
+        reply_markup=get_time_machine_keyboard(lang, win.id),
+    )
+    await state.update_data(last_win_id=win.id, nav_msg_id=nav_msg.message_id)
+
+
 @router.callback_query(F.data == "menu:time_machine")
 async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
     if not rate_check(query.from_user.id):
@@ -107,27 +143,8 @@ async def show_time_machine(query: CallbackQuery, state: FSMContext, session, bo
         await query.answer(t(lang, "goal_not_found"), show_alert=True)
         return
 
-    days_ago = (datetime.now(timezone.utc).date() - win.created_at.date()).days
-    await state.update_data(last_win_id=win.id)
     await query.answer()
-
-    memory_text = t(lang, "memory", date=_format_date(win.created_at, lang), text=win.raw_text, days=days_ago)
-    stickers_enabled = getattr(user, "stickers_enabled", False)
-    chat_id = query.message.chat.id
-    msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang, win.id))
-
-    try:
-        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
-            reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
-        final_text = f"{memory_text}\n\n{reflection}"
-        if stickers_enabled:
-            await try_delete(msg)
-            await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
-            await bot.send_message(chat_id, final_text, reply_markup=get_time_machine_keyboard(lang, win.id))
-        else:
-            await edit_or_answer(msg, final_text, get_time_machine_keyboard(lang, win.id))
-    except Exception:
-        logger.warning("AI reflection failed for user %s win %s", user.id, win.id, exc_info=True)
+    await _show_reflection(bot, query, state, user, win, lang)
 
 
 @router.callback_query(F.data == "then:another")
@@ -149,27 +166,10 @@ async def show_another(query: CallbackQuery, state: FSMContext, session, bot: Bo
         await edit_or_answer(query.message, t(lang, "only_memory"), _back_only_keyboard(lang))
         return
 
-    days_ago = (datetime.now(timezone.utc).date() - win.created_at.date()).days
-    await state.update_data(last_win_id=win.id)
     await query.answer()
-
-    memory_text = t(lang, "memory", date=_format_date(win.created_at, lang), text=win.raw_text, days=days_ago)
-    stickers_enabled = getattr(user, "stickers_enabled", False)
-    chat_id = query.message.chat.id
-    msg = await edit_or_answer(query.message, memory_text, get_time_machine_keyboard(lang, win.id))
-
-    try:
-        async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
-            reflection = await ask_reflect(user.tone, win.raw_text, days_ago, lang)
-        final_text = f"{memory_text}\n\n{reflection}"
-        if stickers_enabled:
-            await try_delete(msg)
-            await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
-            await bot.send_message(chat_id, final_text, reply_markup=get_time_machine_keyboard(lang, win.id))
-        else:
-            await edit_or_answer(msg, final_text, get_time_machine_keyboard(lang, win.id))
-    except Exception:
-        logger.warning("AI reflection failed for user %s win %s", user.id, win.id, exc_info=True)
+    # Delete the current nav/control message so the new one appears cleanly
+    await try_delete(query.message)
+    await _show_reflection(bot, query, state, user, win, lang)
 
 
 @router.callback_query(F.data.startswith("then:edit:"))
@@ -251,9 +251,10 @@ async def delete_memory(query: CallbackQuery, state: FSMContext, session) -> Non
 
 
 @router.callback_query(F.data == "then:back")
-async def time_machine_back(query: CallbackQuery, state: FSMContext, session) -> None:
+async def time_machine_back(query: CallbackQuery, state: FSMContext, session, bot: Bot) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
     await state.clear()
     await query.answer()
-    await edit_or_answer(query.message, t(lang, "main_menu"), get_main_menu_keyboard(lang))
+    await try_delete(query.message)
+    await bot.send_message(query.message.chat.id, t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))
