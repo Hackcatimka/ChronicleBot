@@ -548,7 +548,17 @@ async def unlink_win_from_goal(query: CallbackQuery, session) -> None:
     win_id, goal_id = int(parts[2]), int(parts[3])
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"
-    win_goal = await session.scalar(select(WinGoal).filter_by(win_id=win_id, goal_id=goal_id))
+    win_goal = await session.scalar(
+        select(WinGoal)
+        .join(Win, WinGoal.win_id == Win.id)
+        .join(Goal, WinGoal.goal_id == Goal.id)
+        .where(
+            WinGoal.win_id == win_id,
+            WinGoal.goal_id == goal_id,
+            Win.user_id == user.id,
+            Goal.user_id == user.id,
+        )
+    )
     if win_goal:
         await session.delete(win_goal)
         await session.commit()
