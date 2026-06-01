@@ -49,6 +49,7 @@ TEXTS = {
         "btn_add_as_goal": "🎯 Add as goal",
         "btn_save_as_win": "🏆 Save as moment",
         "goal_saved_quick": "🎯 Goal added: \"{title}\"\n\nYou can set a deadline and category in Goals.",
+        "goal_title_from_win": "What should this goal be called? Send a short title:",
         "win_received": "Got it:\n\n{text}\n\nSave this as a moment?",
         "btn_save": "✅ Save",
         "btn_link_goal": "🎯 Link to goal",
@@ -227,6 +228,19 @@ TEXTS = {
         "deadline_reminder": "⏰ Goal \"{title}\" is due in 3 days — {deadline}.\n\nHow's it going?",
 
         "milestone": "🎉 Moment #{count} — a milestone!\n\n",
+
+        "goal_suggestion": (
+            "I notice a pattern — you often write about {tag}.\n\n"
+            "Here's a goal that might fit:\n\n"
+            "🎯 <b>{title}</b>\n\n"
+            "Want to set it?"
+        ),
+        "btn_suggest_accept": "✅ Set this goal",
+        "btn_suggest_custom": "✏️ Different name",
+        "btn_suggest_skip": "❌ Not now",
+        "goal_suggest_custom_prompt": "Write a goal title:",
+        "goal_suggest_saved": "🎯 Goal set: \"{title}\"\n\nYou can add a deadline and category in Goals.",
+        "goal_suggest_skipped": "Got it — no goal for now.",
     },
     "ru": {
         "choose_language": "Выбери язык:",
@@ -278,6 +292,7 @@ TEXTS = {
         "btn_add_as_goal": "🎯 Добавить как цель",
         "btn_save_as_win": "🏆 Сохранить как момент",
         "goal_saved_quick": "🎯 Цель добавлена: \"{title}\"\n\nДедлайн и категорию можно задать в разделе Цели.",
+        "goal_title_from_win": "Как назовём эту цель? Отправь короткий заголовок:",
         "win_received": "Вот что я получил:\n\n{text}\n\nСохранить как момент?",
         "btn_save": "✅ Сохранить",
         "btn_link_goal": "🎯 Привязать к цели",
@@ -455,6 +470,19 @@ TEXTS = {
         "deadline_reminder": "⏰ Цель \"{title}\" — через 3 дня дедлайн ({deadline}).\n\nКак дела с ней?",
 
         "milestone": "🎉 Момент #{count} — это веха!\n\n",
+
+        "goal_suggestion": (
+            "Я замечаю паттерн — ты часто пишешь про {tag}.\n\n"
+            "Вот цель, которая может подойти:\n\n"
+            "🎯 <b>{title}</b>\n\n"
+            "Поставить её?"
+        ),
+        "btn_suggest_accept": "✅ Поставить цель",
+        "btn_suggest_custom": "✏️ Другое название",
+        "btn_suggest_skip": "❌ Не сейчас",
+        "goal_suggest_custom_prompt": "Напиши название цели:",
+        "goal_suggest_saved": "🎯 Цель поставлена: \"{title}\"\n\nДедлайн и категорию можно добавить в Целях.",
+        "goal_suggest_skipped": "Хорошо — пока без цели.",
     },
 }
 

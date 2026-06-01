@@ -348,7 +348,7 @@ async def complete_goal(query: CallbackQuery, session, bot: Bot) -> None:
         await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))
 
 
-@router.callback_query(F.data.startswith("goal:abandon:"))
+@router.callback_query(F.data.regexp(r"^goal:abandon:\d+$"))
 async def abandon_goal(query: CallbackQuery, session) -> None:
     user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
     lang = getattr(user, "language", "en") if user else "en"

@@ -169,6 +169,14 @@ def get_abandon_confirm_buttons(lang: str, goal_id: int) -> InlineKeyboardMarkup
     ])
 
 
+def get_goal_suggestion_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_suggest_accept"), callback_data="goal_suggest:accept"),
+         InlineKeyboardButton(text=t(lang, "btn_suggest_custom"), callback_data="goal_suggest:custom")],
+        [InlineKeyboardButton(text=t(lang, "btn_suggest_skip"), callback_data="goal_suggest:skip")],
+    ])
+
+
 def get_search_results_keyboard(lang: str, has_more: bool) -> InlineKeyboardMarkup:
     buttons = []
     if has_more:

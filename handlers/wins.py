@@ -10,7 +10,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import func, select
 
-from ai import ask_praise, classify_intent, classify_tag
+from ai import ask_praise, classify_intent, classify_tag, suggest_goal_title
 from dateparse import extract_win_date
 from ratelimit import check as rate_check
 
@@ -18,20 +18,24 @@ _saving_users: set[int] = set()
 _MAX_INPUT_LEN = 2000
 from config import settings
 from db.models import Goal, User, Win, WinGoal
-from keyboards import get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
+from keyboards import get_goal_suggestion_keyboard, get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
 from stickers import send_random_sticker
-from utils import edit_or_answer, try_delete
+from utils import edit_or_answer, edit_stored, try_delete
 
 router = Router()
 logger = logging.getLogger(__name__)
 
 _MILESTONES = {10, 25, 50, 100, 200, 500, 1000}
+_GOAL_SUGGESTION_THRESHOLD = 5
 
 
 class WinStates(StatesGroup):
     waiting_for_confirmation = State()
     waiting_for_goal = State()
+    waiting_for_goal_title = State()
+    waiting_for_goal_suggestion = State()
+    waiting_for_suggestion_title = State()
 
 
 async def _show_main_menu(message: Message, session) -> None:
@@ -40,7 +44,12 @@ async def _show_main_menu(message: Message, session) -> None:
     await message.answer(t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))
 
 
-@router.message(F.text, ~StateFilter(WinStates.waiting_for_confirmation))
+@router.message(F.text, ~StateFilter(
+    WinStates.waiting_for_confirmation,
+    WinStates.waiting_for_goal_title,
+    WinStates.waiting_for_goal_suggestion,
+    WinStates.waiting_for_suggestion_title,
+))
 async def request_win_text(message: Message, state: FSMContext, session, bot: Bot) -> None:
     if message.text is None or message.text.startswith("/"):
         return
@@ -63,10 +72,14 @@ async def request_win_text(message: Message, state: FSMContext, session, bot: Bo
     await session.commit()
 
     async with ChatActionSender.typing(bot=bot, chat_id=message.chat.id):
-        intent, tag = await asyncio.gather(
-            classify_intent(message.text),
-            classify_tag(message.text),
-        )
+        if len(message.text) > 120:
+            tag = await classify_tag(message.text)
+            intent = "win"
+        else:
+            intent, tag = await asyncio.gather(
+                classify_intent(message.text),
+                classify_tag(message.text),
+            )
     await state.update_data(raw_text=message.text, tag=tag)
     await state.set_state(WinStates.waiting_for_confirmation)
 
@@ -110,15 +123,34 @@ async def intent_as_goal(query: CallbackQuery, state: FSMContext, session) -> No
         await query.answer(t(lang, "no_text_to_save"), show_alert=True)
         await state.clear()
         return
-
-    goal = Goal(user_id=user.id, title=raw_text, status="active")
-    session.add(goal)
     await query.answer()
+    sent = await edit_or_answer(query.message, t(lang, "goal_title_from_win"))
+    await state.update_data(bot_msg_id=sent.message_id, chat_id=sent.chat.id)
+    await state.set_state(WinStates.waiting_for_goal_title)
+
+
+@router.message(StateFilter(WinStates.waiting_for_goal_title), F.text)
+async def handle_goal_title(message: Message, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
+    title = message.text.strip()
+    if len(title) > _MAX_INPUT_LEN:
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
+        await state.update_data(bot_msg_id=sent.message_id)
+        return
+    if user is None:
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        await state.clear()
+        return
+    goal = Goal(user_id=user.id, title=title, status="active")
+    session.add(goal)
     await session.commit()
     await state.clear()
-    await edit_or_answer(
-        query.message,
-        t(lang, "goal_saved_quick", title=raw_text),
+    await edit_stored(
+        message.bot, message.chat.id, msg_id,
+        t(lang, "goal_saved_quick", title=title),
         get_main_menu_keyboard(lang),
     )
 
@@ -161,6 +193,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
     await session.commit()
 
     count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id))
+    tag_count = await session.scalar(select(func.count()).select_from(Win).filter_by(user_id=user.id, tag=tag))
     tag_label = t(lang, f"tag_{tag}")
     stickers_enabled = getattr(user, "stickers_enabled", True)
     chat_id = query.message.chat.id
@@ -187,7 +220,29 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
         await bot.send_message(chat_id, result_text, reply_markup=get_main_menu_keyboard(lang))
     else:
         await edit_or_answer(query.message, result_text, get_main_menu_keyboard(lang))
-    await state.clear()
+
+    if tag_count == _GOAL_SUGGESTION_THRESHOLD:
+        recent_wins = await session.scalars(
+            select(Win).filter_by(user_id=user.id, tag=tag).order_by(Win.created_at.desc()).limit(5)
+        )
+        win_texts = [w.raw_text for w in recent_wins.all()]
+        try:
+            async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
+                suggested_title = await suggest_goal_title(tag, win_texts, lang)
+        except Exception:
+            logger.warning("Goal suggestion failed for user %s", user.id, exc_info=True)
+            await state.clear()
+            return
+        suggestion_msg = await bot.send_message(
+            chat_id,
+            t(lang, "goal_suggestion", tag=t(lang, f"tag_{tag}"), title=suggested_title),
+            reply_markup=get_goal_suggestion_keyboard(lang),
+            parse_mode="HTML",
+        )
+        await state.set_state(WinStates.waiting_for_goal_suggestion)
+        await state.update_data(suggested_title=suggested_title, bot_msg_id=suggestion_msg.message_id)
+    else:
+        await state.clear()
 
 
 @router.callback_query(F.data == "edit_win", StateFilter(WinStates.waiting_for_confirmation))
@@ -278,6 +333,69 @@ async def link_win_to_goal(query: CallbackQuery, state: FSMContext, session) -> 
     await query.answer()
     await edit_or_answer(query.message, t(lang, "win_linked"), get_main_menu_keyboard(lang))
     await state.clear()
+
+
+@router.callback_query(F.data == "goal_suggest:accept", StateFilter(WinStates.waiting_for_goal_suggestion))
+async def goal_suggest_accept(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    suggested_title = data.get("suggested_title", "")
+    if not suggested_title or user is None:
+        await query.answer()
+        await state.clear()
+        return
+    goal = Goal(user_id=user.id, title=suggested_title, status="active")
+    session.add(goal)
+    await session.commit()
+    await query.answer()
+    await edit_or_answer(query.message, t(lang, "goal_suggest_saved", title=suggested_title), get_main_menu_keyboard(lang))
+    await state.clear()
+
+
+@router.callback_query(F.data == "goal_suggest:custom", StateFilter(WinStates.waiting_for_goal_suggestion))
+async def goal_suggest_custom(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    await query.answer()
+    sent = await edit_or_answer(query.message, t(lang, "goal_suggest_custom_prompt"))
+    await state.update_data(bot_msg_id=sent.message_id)
+    await state.set_state(WinStates.waiting_for_suggestion_title)
+
+
+@router.callback_query(F.data == "goal_suggest:skip", StateFilter(WinStates.waiting_for_goal_suggestion))
+async def goal_suggest_skip(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    await query.answer()
+    await edit_or_answer(query.message, t(lang, "goal_suggest_skipped"), get_main_menu_keyboard(lang))
+    await state.clear()
+
+
+@router.message(StateFilter(WinStates.waiting_for_suggestion_title), F.text)
+async def handle_suggestion_title(message: Message, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
+    title = message.text.strip()
+    if len(title) > _MAX_INPUT_LEN:
+        sent = await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "input_too_long"))
+        await state.update_data(bot_msg_id=sent.message_id)
+        return
+    if user is None:
+        await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "user_not_found"))
+        await state.clear()
+        return
+    goal = Goal(user_id=user.id, title=title, status="active")
+    session.add(goal)
+    await session.commit()
+    await state.clear()
+    await edit_stored(
+        message.bot, message.chat.id, msg_id,
+        t(lang, "goal_suggest_saved", title=title),
+        get_main_menu_keyboard(lang),
+    )
 
 
 @router.callback_query(F.data.startswith("menu:"))
