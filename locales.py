@@ -159,6 +159,7 @@ TEXTS = {
         "weekly_digest_summary": "This week you recorded {count} moments.",
         "weekly_digest_no_wins": "No moments yet.",
         "weekly_digest_encouragement": "Keep it up!",
+        "inactivity_nudge": "Hey, it's been a quiet day — anything worth remembering? Even something small counts ✨",
 
         "tone_friend": "Friend 👋",
         "tone_coach": "Coach 💪",
@@ -446,6 +447,7 @@ TEXTS = {
         "weekly_digest_summary": "На этой неделе ты записал {count} моментов.",
         "weekly_digest_no_wins": "Моментов пока нет.",
         "weekly_digest_encouragement": "Так держать!",
+        "inactivity_nudge": "Тихий день — может, всё же было что-то стоящее? Даже мелочь считается ✨",
 
         "tone_friend": "Друг 👋",
         "tone_coach": "Коуч 💪",
