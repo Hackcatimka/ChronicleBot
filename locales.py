@@ -224,6 +224,9 @@ TEXTS = {
         "search_results": "🔍 \"{query}\" — {count} found:",
         "search_showing": "Showing {start}–{end} of {total}",
         "btn_search_more": "Load more",
+        "btn_search_all": "📋 All moments",
+        "search_all_title": "📋 All moments — {total} total",
+        "search_all_empty": "No moments recorded yet.",
 
         "deadline_reminder": "⏰ Goal \"{title}\" is due in 3 days — {deadline}.\n\nHow's it going?",
 
@@ -506,6 +509,9 @@ TEXTS = {
         "search_results": "🔍 \"{query}\" — найдено {count}:",
         "search_showing": "Показано {start}–{end} из {total}",
         "btn_search_more": "Показать ещё",
+        "btn_search_all": "📋 Все моменты",
+        "search_all_title": "📋 Все моменты — {total} всего",
+        "search_all_empty": "Моментов пока нет.",
 
         "deadline_reminder": "⏰ Цель \"{title}\" — через 3 дня дедлайн ({deadline}).\n\nКак дела с ней?",
 

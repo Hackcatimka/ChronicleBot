@@ -193,10 +193,25 @@ def get_goal_suggestion_keyboard(lang: str) -> InlineKeyboardMarkup:
     ])
 
 
+def get_search_prompt_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_search_all"), callback_data="search:all")],
+        [InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")],
+    ])
+
+
 def get_search_results_keyboard(lang: str, has_more: bool) -> InlineKeyboardMarkup:
     buttons = []
     if has_more:
         buttons.append([InlineKeyboardButton(text=t(lang, "btn_search_more"), callback_data="search:more")])
+    buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+
+def get_search_all_keyboard(lang: str, has_more: bool) -> InlineKeyboardMarkup:
+    buttons = []
+    if has_more:
+        buttons.append([InlineKeyboardButton(text=t(lang, "btn_search_more"), callback_data="search:all:more")])
     buttons.append([InlineKeyboardButton(text=t(lang, "btn_back"), callback_data="search:back")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
