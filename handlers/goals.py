@@ -5,7 +5,7 @@ from aiogram import Bot, F, Router
 from ai import ask_goal_progress, suggest_goal_title
 from config import settings
 from ratelimit import check as rate_check
-from stickers import send_random_sticker
+from stickers import send_mood_sticker
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -328,7 +328,7 @@ async def analyse_goal(query: CallbackQuery, session, bot: Bot) -> None:
     stickers_enabled = getattr(user, "stickers_enabled", False)
     if stickers_enabled:
         await try_delete(msg)
-        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await send_mood_sticker(bot, chat_id, "excited", settings.STICKER_SET_NAME, True)
         await bot.send_message(chat_id, analysis)
     else:
         await edit_or_answer(msg, analysis)
@@ -364,7 +364,7 @@ async def complete_goal(query: CallbackQuery, session, bot: Bot) -> None:
     await query.answer()
     if stickers_enabled:
         await try_delete(query.message)
-        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await send_mood_sticker(bot, chat_id, "proud", settings.STICKER_SET_NAME, True)
         await bot.send_message(chat_id, combined, reply_markup=get_goal_menu_keyboard(lang, bool(goals)))
     else:
         await edit_or_answer(query.message, combined, get_goal_menu_keyboard(lang, bool(goals)))

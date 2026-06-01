@@ -20,7 +20,7 @@ from config import settings
 from db.models import Goal, User, Win, WinGoal
 from keyboards import get_goal_suggestion_keyboard, get_intent_keyboard, get_main_menu_keyboard, get_win_confirmation_keyboard
 from locales import t
-from stickers import send_random_sticker
+from stickers import TAG_TO_MOOD, send_mood_sticker
 from utils import edit_or_answer, edit_stored, try_delete
 
 router = Router()
@@ -216,7 +216,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
 
     if stickers_enabled:
         await try_delete(query.message)
-        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await send_mood_sticker(bot, chat_id, TAG_TO_MOOD.get(tag), settings.STICKER_SET_NAME, True)
         await bot.send_message(chat_id, result_text)
     else:
         await edit_or_answer(query.message, result_text)

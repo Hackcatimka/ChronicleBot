@@ -16,7 +16,7 @@ from db.models import User, Win
 from keyboards import get_main_menu_keyboard
 from locales import t
 from ratelimit import check as rate_check
-from stickers import send_random_sticker
+from stickers import send_mood_sticker
 from utils import edit_or_answer, edit_stored, format_date, try_delete
 
 router = Router()
@@ -105,7 +105,7 @@ async def _show_reflection(
         final_text = f"{memory_text}\n\n{reflection}"
         if stickers_enabled:
             await try_delete(msg)
-            await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+            await send_mood_sticker(bot, chat_id, "calm", settings.STICKER_SET_NAME, True)
             await bot.send_message(chat_id, final_text)
         else:
             await edit_or_answer(msg, final_text)

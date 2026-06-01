@@ -14,7 +14,7 @@ from config import settings
 from db.models import User, Win
 from locales import t
 from ratelimit import check as rate_check
-from stickers import send_random_sticker
+from stickers import send_mood_sticker
 from utils import edit_or_answer, format_date, try_delete
 
 router = Router()
@@ -400,7 +400,7 @@ async def show_period_ai_review(query: CallbackQuery, session, bot: Bot) -> None
     stickers_enabled = getattr(user, "stickers_enabled", False)
     if stickers_enabled:
         await try_delete(msg)
-        await send_random_sticker(bot, chat_id, settings.STICKER_SET_NAME, True)
+        await send_mood_sticker(bot, chat_id, "proud", settings.STICKER_SET_NAME, True)
         await bot.send_message(chat_id, digest)
     else:
         await edit_or_answer(msg, digest)

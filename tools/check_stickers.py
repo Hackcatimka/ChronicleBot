@@ -15,15 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from aiogram import Bot
 from aiogram.client.default import DefaultBotProperties
 from config import settings
-
-MOOD_EMOJIS: dict[str, list[str]] = {
-    "happy":    ["😄"],
-    "proud":    ["💪"],
-    "grateful": ["🙏"],
-    "excited":  ["🚀"],
-    "calm":     ["😌"],
-    "sad":      ["😢"],
-}
+from stickers import MOOD_EMOJIS
 
 EMOJI_TO_MOOD = {emoji: mood for mood, emojis in MOOD_EMOJIS.items() for emoji in emojis}
 
