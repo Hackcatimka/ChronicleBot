@@ -2,14 +2,20 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 
 from aiogram import F, Router
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from sqlalchemy import distinct, exists, func, select
 
 from config import settings
-from db.models import Goal, Reminder, User, Win
+from db.models import Feedback, Goal, Reminder, User, Win
 from locales import t
-from utils import split_tags
+from utils import edit_stored, split_tags
+
+
+class AdminStates(StatesGroup):
+    waiting_for_reply = State()
 
 _TAG_EMOJI = {
     "work": "💼", "health": "💪", "learning": "📚", "personal": "🙂",
@@ -43,7 +49,7 @@ def _bar(value: int, max_value: int, width: int = 8) -> str:
     return "█" * filled + "░" * (width - filled)
 
 
-def _admin_keyboard(current: str) -> InlineKeyboardMarkup:
+def _admin_keyboard(current: str, unread_feedback: int = 0) -> InlineKeyboardMarkup:
     periods = ["today", "week", "month", "year"]
     period_buttons = [
         InlineKeyboardButton(
@@ -55,7 +61,9 @@ def _admin_keyboard(current: str) -> InlineKeyboardMarkup:
     moments_button = InlineKeyboardButton(text="📊 Моменты подробно", callback_data=f"admin:moments:{current}")
     users_button = InlineKeyboardButton(text="👥 Пользователи подробно", callback_data=f"admin:users:{current}")
     nudge_button = InlineKeyboardButton(text="📣 Напомнить молчащим 24ч+", callback_data="admin:nudge")
-    return InlineKeyboardMarkup(inline_keyboard=[period_buttons, [moments_button], [users_button], [nudge_button]])
+    feedback_label = f"💬 Фидбек ({unread_feedback} без ответа)" if unread_feedback else "💬 Фидбек"
+    feedback_button = InlineKeyboardButton(text=feedback_label, callback_data="admin:feedback")
+    return InlineKeyboardMarkup(inline_keyboard=[period_buttons, [moments_button], [users_button], [nudge_button], [feedback_button]])
 
 
 def _moments_detail_keyboard(period: str) -> InlineKeyboardMarkup:
@@ -345,12 +353,19 @@ async def _build_users_detail(session, period: str) -> str:
     return "\n".join(lines)
 
 
+async def _unread_feedback_count(session) -> int:
+    return await session.scalar(
+        select(func.count(Feedback.id)).where(Feedback.reply_text.is_(None))
+    )
+
+
 @router.message(Command("admin"))
 async def cmd_admin(message: Message, session) -> None:
     if message.from_user.id != settings.ADMIN_TG_ID:
         return
     text = await _build_stats(session, "week")
-    await message.answer(text, reply_markup=_admin_keyboard("week"))
+    unread = await _unread_feedback_count(session)
+    await message.answer(text, reply_markup=_admin_keyboard("week", unread))
 
 
 @router.callback_query(F.data.startswith("admin:period:"))
@@ -360,8 +375,9 @@ async def switch_period(query: CallbackQuery, session) -> None:
         return
     period = query.data.split(":", 2)[2]
     text = await _build_stats(session, period)
+    unread = await _unread_feedback_count(session)
     await query.answer()
-    await query.message.edit_text(text, reply_markup=_admin_keyboard(period))
+    await query.message.edit_text(text, reply_markup=_admin_keyboard(period, unread))
 
 
 @router.callback_query(F.data.startswith("admin:users:"))
@@ -413,4 +429,171 @@ async def send_nudge(query: CallbackQuery, session) -> None:
 
     await query.message.answer(
         f"📣 Рассылка завершена\n\nОтправлено: <b>{sent}</b>\nНе доставлено: <b>{failed}</b>"
+    )
+
+
+_FEEDBACK_PAGE = 8
+
+
+def _feedback_list_keyboard(feedbacks: list, offset: int, total: int) -> InlineKeyboardMarkup:
+    rows = []
+    for fb in feedbacks:
+        status = "✅ " if fb.reply_text else ""
+        preview = fb.text[:35] + "…" if len(fb.text) > 35 else fb.text
+        name = fb.username or str(fb.tg_id)
+        rows.append([InlineKeyboardButton(
+            text=f"{status}{name}: {preview}",
+            callback_data=f"admin:feedback:view:{fb.id}",
+        )])
+    nav = []
+    if offset > 0:
+        nav.append(InlineKeyboardButton(text="← Старее", callback_data=f"admin:feedback:page:{offset - _FEEDBACK_PAGE}"))
+    if offset + _FEEDBACK_PAGE < total:
+        nav.append(InlineKeyboardButton(text="Новее →", callback_data=f"admin:feedback:page:{offset + _FEEDBACK_PAGE}"))
+    if nav:
+        rows.append(nav)
+    rows.append([InlineKeyboardButton(text="← Назад", callback_data="admin:period:week")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _feedback_view_keyboard(feedback_id: int, is_replied: bool) -> InlineKeyboardMarkup:
+    rows = []
+    if not is_replied:
+        rows.append([InlineKeyboardButton(text="💬 Ответить", callback_data=f"admin:feedback:reply:{feedback_id}")])
+    rows.append([InlineKeyboardButton(text="← К списку", callback_data="admin:feedback")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+async def _render_feedback_list(query: CallbackQuery, session, offset: int = 0) -> None:
+    total = await session.scalar(select(func.count(Feedback.id)))
+    unread = await _unread_feedback_count(session)
+    feedbacks = (await session.scalars(
+        select(Feedback).order_by(Feedback.created_at.desc()).offset(offset).limit(_FEEDBACK_PAGE)
+    )).all()
+    header = f"<b>💬 Фидбек — {total} сообщений, {unread} без ответа</b>"
+    await query.message.edit_text(header, reply_markup=_feedback_list_keyboard(feedbacks, offset, total))
+
+
+@router.callback_query(F.data == "admin:feedback")
+async def show_feedback_list(query: CallbackQuery, session) -> None:
+    if query.from_user.id != settings.ADMIN_TG_ID:
+        await query.answer()
+        return
+    await query.answer()
+    await _render_feedback_list(query, session, offset=0)
+
+
+@router.callback_query(F.data.startswith("admin:feedback:page:"))
+async def feedback_page(query: CallbackQuery, session) -> None:
+    if query.from_user.id != settings.ADMIN_TG_ID:
+        await query.answer()
+        return
+    try:
+        offset = int(query.data.split(":", 3)[3])
+    except (ValueError, IndexError):
+        await query.answer()
+        return
+    await query.answer()
+    await _render_feedback_list(query, session, offset=offset)
+
+
+@router.callback_query(F.data.startswith("admin:feedback:view:"))
+async def view_feedback(query: CallbackQuery, session) -> None:
+    if query.from_user.id != settings.ADMIN_TG_ID:
+        await query.answer()
+        return
+    try:
+        feedback_id = int(query.data.split(":", 3)[3])
+    except (ValueError, IndexError):
+        await query.answer()
+        return
+
+    fb = await session.scalar(select(Feedback).where(Feedback.id == feedback_id))
+    if fb is None:
+        await query.answer("Фидбек не найден", show_alert=True)
+        return
+
+    date_str = fb.created_at.strftime("%d.%m.%Y %H:%M")
+    name = fb.username or str(fb.tg_id)
+    lines = [
+        f"<b>💬 Фидбек #{fb.id}</b>",
+        f"От: {name} (tg_id: {fb.tg_id})",
+        f"Дата: {date_str}",
+        "",
+        fb.text,
+    ]
+    if fb.reply_text:
+        replied_str = fb.replied_at.strftime("%d.%m.%Y %H:%M") if fb.replied_at else "—"
+        lines += ["", f"✅ <b>Ответ отправлен</b> ({replied_str}):", fb.reply_text]
+
+    await query.answer()
+    await query.message.edit_text("\n".join(lines), reply_markup=_feedback_view_keyboard(fb.id, bool(fb.reply_text)))
+
+
+@router.callback_query(F.data.startswith("admin:feedback:reply:"))
+async def start_feedback_reply(query: CallbackQuery, state: FSMContext, session) -> None:
+    if query.from_user.id != settings.ADMIN_TG_ID:
+        await query.answer()
+        return
+    try:
+        feedback_id = int(query.data.split(":", 3)[3])
+    except (ValueError, IndexError):
+        await query.answer()
+        return
+
+    fb = await session.scalar(select(Feedback).where(Feedback.id == feedback_id))
+    if fb is None:
+        await query.answer("Фидбек не найден", show_alert=True)
+        return
+
+    await state.set_state(AdminStates.waiting_for_reply)
+    await state.update_data(feedback_id=feedback_id, feedback_msg_id=query.message.message_id, chat_id=query.message.chat.id)
+    await query.answer()
+    await query.message.edit_text(
+        f"Напиши ответ пользователю {fb.username or fb.tg_id}:\n\n<i>{fb.text[:200]}</i>",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="Отмена", callback_data=f"admin:feedback:view:{feedback_id}")
+        ]]),
+    )
+
+
+@router.message(StateFilter(AdminStates.waiting_for_reply), F.text)
+async def send_feedback_reply(message: Message, state: FSMContext, session) -> None:
+    if message.from_user.id != settings.ADMIN_TG_ID:
+        return
+
+    data = await state.get_data()
+    feedback_id = data.get("feedback_id")
+    msg_id = data.get("feedback_msg_id")
+    chat_id = data.get("chat_id")
+
+    fb = await session.scalar(select(Feedback).where(Feedback.id == feedback_id))
+    if fb is None:
+        await state.clear()
+        return
+
+    reply_text = message.text.strip()
+
+    user = await session.scalar(select(User).where(User.id == fb.user_id)) if fb.user_id else None
+    lang = getattr(user, "language", "ru") if user else "ru"
+
+    try:
+        await message.bot.send_message(fb.tg_id, t(lang, "feedback_reply", text=reply_text))
+        delivered = True
+    except Exception:
+        delivered = False
+
+    fb.reply_text = reply_text
+    fb.replied_at = datetime.now(timezone.utc)
+    session.add(fb)
+    await session.commit()
+    await state.clear()
+
+    status = "✅ Доставлено" if delivered else "⚠️ Не доставлено (возможно, пользователь заблокировал бота)"
+    await edit_stored(
+        message.bot, chat_id, msg_id,
+        f"Ответ отправлен\n\n{status}",
+        InlineKeyboardMarkup(inline_keyboard=[[
+            InlineKeyboardButton(text="← К списку", callback_data="admin:feedback")
+        ]]),
     )

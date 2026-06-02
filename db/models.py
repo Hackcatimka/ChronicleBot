@@ -20,6 +20,7 @@ class User(Base):
     wins = relationship("Win", back_populates="user", cascade="all, delete-orphan")
     reminders = relationship("Reminder", back_populates="user", cascade="all, delete-orphan")
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+    feedbacks = relationship("Feedback", back_populates="user", cascade="all, delete-orphan", foreign_keys="Feedback.user_id")
 
 
 class Win(Base):
@@ -70,3 +71,18 @@ class Reminder(Base):
     is_active = Column(Boolean, nullable=False, default=True)
 
     user = relationship("User", back_populates="reminders")
+
+
+class Feedback(Base):
+    __tablename__ = "feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    tg_id = Column(BigInteger, nullable=False)
+    username = Column(String(255), nullable=True)
+    text = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    reply_text = Column(Text, nullable=True)
+    replied_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", back_populates="feedbacks", foreign_keys=[user_id])

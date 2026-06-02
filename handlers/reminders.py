@@ -7,7 +7,7 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import CallbackQuery, Message
 from sqlalchemy import delete, select
 
-from db.models import Goal, Reminder, User, Win
+from db.models import Feedback, Goal, Reminder, User, Win
 from keyboards import (
     get_delete_confirm_keyboard,
     get_language_keyboard,
@@ -27,6 +27,10 @@ router = Router()
 class ReminderStates(StatesGroup):
     waiting_for_time = State()
     waiting_for_timezone = State()
+
+
+class FeedbackStates(StatesGroup):
+    waiting_for_text = State()
 
 
 def _parse_time_input(reminder_type: str, text: str) -> str | None:
@@ -250,6 +254,45 @@ async def delete_data_confirmed(query: CallbackQuery, state: FSMContext, session
     await state.clear()
     await query.answer()
     await edit_or_answer(query.message, _WELCOME_NEW, get_language_keyboard())
+
+
+@router.callback_query(F.data == "settings:feedback")
+async def show_feedback_prompt(query: CallbackQuery, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=query.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    if user is None:
+        await query.answer(t(lang, "user_not_found"), show_alert=True)
+        return
+    await state.set_state(FeedbackStates.waiting_for_text)
+    await query.answer()
+    sent = await edit_or_answer(query.message, t(lang, "feedback_prompt"))
+    await state.update_data(bot_msg_id=sent.message_id, chat_id=sent.chat.id)
+
+
+@router.message(StateFilter(FeedbackStates.waiting_for_text), F.text)
+async def save_feedback(message: Message, state: FSMContext, session) -> None:
+    user = await session.scalar(select(User).filter_by(tg_id=message.from_user.id))
+    lang = getattr(user, "language", "en") if user else "en"
+    data = await state.get_data()
+    msg_id = data.get("bot_msg_id")
+
+    if user is None:
+        await state.clear()
+        return
+
+    username = message.from_user.username or message.from_user.full_name
+    feedback = Feedback(
+        user_id=user.id,
+        tg_id=message.from_user.id,
+        username=username,
+        text=message.text.strip(),
+    )
+    session.add(feedback)
+    await session.commit()
+    await state.clear()
+
+    stickers_enabled = getattr(user, "stickers_enabled", False)
+    await edit_stored(message.bot, message.chat.id, msg_id, t(lang, "feedback_sent"), get_settings_keyboard(lang, stickers_enabled))
 
 
 @router.callback_query(F.data.startswith("reminder:add:"))

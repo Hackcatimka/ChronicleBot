@@ -287,6 +287,11 @@ TEXTS = {
         "goal_suggest_custom_prompt": "Write a goal title:",
         "goal_suggest_saved": "🎯 Goal set: \"{title}\"\n\nYou can add a deadline and category in Goals.",
         "goal_suggest_skipped": "Got it — no goal for now.",
+
+        "btn_feedback": "💬 Feedback",
+        "feedback_prompt": "Got something to say? Send your feedback — bug reports, ideas, or anything else. I read everything.",
+        "feedback_sent": "Thanks! Your feedback has been sent.",
+        "feedback_reply": "💬 Reply from the Chronicle team:\n\n{text}",
     },
     "ru": {
         "choose_language": "Выбери язык:",
@@ -575,6 +580,11 @@ TEXTS = {
         "goal_suggest_custom_prompt": "Напиши название цели:",
         "goal_suggest_saved": "🎯 Цель поставлена: \"{title}\"\n\nДедлайн и категорию можно добавить в Целях.",
         "goal_suggest_skipped": "Хорошо — пока без цели.",
+
+        "btn_feedback": "💬 Фидбек",
+        "feedback_prompt": "Есть что сказать? Напиши — баг, идея, пожелание. Читаю всё.",
+        "feedback_sent": "Спасибо! Фидбек отправлен.",
+        "feedback_reply": "💬 Ответ от команды Chronicle:\n\n{text}",
     },
 }
 
