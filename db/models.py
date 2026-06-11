@@ -14,6 +14,7 @@ class User(Base):
     language = Column(String(10), nullable=False, default="en")
     utc_offset = Column(Integer, nullable=False, default=0)
     stickers_enabled = Column(Boolean, nullable=False, default=False)
+    portrait = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     last_active_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 

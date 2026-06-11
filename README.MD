@@ -11,13 +11,15 @@ Telegram bot that saves your moments, tracks your goals, and reflects your progr
 - **Goal suggestion** — after 5 moments in the same category, AI suggests a matching goal automatically
 - **Reflect** — AI analysis of your last 30 days: patterns, strengths, what's next
 - **Time Machine** — revisit random past moments with AI reflection; edit or delete moments in place
+- **Search** — full-text search across all moments; "All moments" chronological view; edit or delete any moment directly from results
 - **Stats** — this week, this month, all time, period comparison; week and month views include an AI narrative review
+- **Skill map** — visual `█░` progress bars per life area tag, shown inside stats
 - **Streak tracking** — all-time view shows your current daily streak
 - **Reminders** — morning check-in, evening check-in, weekly digest with AI narrative
 - **Tones** — Friend, Coach, or Mirror — changes how the AI talks to you
 - **Stickers** — optional Catification mode: random sticker appears above each AI response
 - **Languages** — English and Russian
-- **Admin panel** — `/admin` command with period-based bot statistics (restricted)
+- **Admin panel** — `/admin` with period stats; drill-down into moment analytics (trend, tags, engagement, time of day) and user analytics (registration trend, D1/D7/D30 retention, churn, tone split); one-tap nudge to all users silent for 24 h+
 
 ---
 
@@ -54,7 +56,8 @@ chronicle/
 │   ├── start.py          # /start, onboarding (language → tone → timezone)
 │   ├── wins.py           # Recording moments, linking to goals, goal suggestion flow
 │   ├── goals.py          # Goals — create, edit, view, complete, abandon; AI suggestion
-│   ├── stats.py          # Stats, period comparison, per-period AI review
+│   ├── search.py         # Moment search, "All moments" view, in-place edit/delete
+│   ├── stats.py          # Stats, period comparison, per-period AI review, skill map
 │   ├── reflect.py        # 30-day AI reflection
 │   ├── then.py           # Time machine — view, edit, delete past moments
 │   ├── reminders.py      # Reminders and settings

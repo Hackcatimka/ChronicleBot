@@ -10,7 +10,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from aiogram.utils.chat_action import ChatActionSender
 from sqlalchemy import func, or_, select
 
-from ai import ask_praise, classify_intent, classify_tag, suggest_goal_title
+from ai import ask_praise, classify_intent, classify_tag, suggest_goal_title, update_portrait
 from dateparse import extract_win_date
 from ratelimit import check as rate_check
 
@@ -25,6 +25,21 @@ from utils import edit_or_answer, edit_stored, split_tags, try_delete
 
 router = Router()
 logger = logging.getLogger(__name__)
+
+
+async def _update_user_portrait(user_id: int, moment_text: str, lang: str) -> None:
+    try:
+        from db.engine import async_session
+        async with async_session() as session:
+            user = await session.scalar(select(User).filter_by(id=user_id))
+            if user is None:
+                return
+            new_portrait = await update_portrait(user.portrait, moment_text, lang)
+            user.portrait = new_portrait
+            session.add(user)
+            await session.commit()
+    except Exception:
+        logger.warning("Portrait update failed for user %s", user_id, exc_info=True)
 
 _MILESTONES = {10, 25, 50, 100, 200, 500, 1000}
 _GOAL_SUGGESTION_THRESHOLD = 5
@@ -202,13 +217,32 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
             or_(Win.tag == primary_tag, Win.tag.like(f"{primary_tag},%"), Win.tag.like(f"%,{primary_tag}")),
         )
     )
+    past_wins_rows = await session.scalars(
+        select(Win.processed_text)
+        .where(Win.user_id == user.id, Win.id != win.id)
+        .order_by(Win.created_at.desc())
+        .limit(5)
+    )
+    past_win_texts: list[str] = list(past_wins_rows.all())
+    active_goal_rows = await session.scalars(
+        select(Goal.title)
+        .where(Goal.user_id == user.id, Goal.status == "active")
+        .order_by(Goal.created_at.desc())
+        .limit(3)
+    )
+    active_goal_titles: list[str] = list(active_goal_rows.all())
     tag_label = "  ".join(t(lang, f"tag_{tg}") for tg in tags)
     stickers_enabled = getattr(user, "stickers_enabled", False)
     chat_id = query.message.chat.id
     await query.answer()
     try:
         async with ChatActionSender.typing(bot=bot, chat_id=chat_id):
-            praise = await ask_praise(user.tone, raw_text, count, lang)
+            praise = await ask_praise(
+                user.tone, raw_text, count, lang,
+                recent_wins=past_win_texts or None,
+                active_goals=active_goal_titles or None,
+                portrait=user.portrait or None,
+            )
         result_text = f"{praise}\n\n{tag_label}"
     except Exception:
         logger.warning("AI praise failed for user %s", user.id, exc_info=True)
@@ -229,6 +263,7 @@ async def _do_save_win(query: CallbackQuery, state: FSMContext, session, bot: Bo
     else:
         await edit_or_answer(query.message, result_text)
     await bot.send_message(chat_id, t(lang, "main_menu"), reply_markup=get_main_menu_keyboard(lang))
+    asyncio.create_task(_update_user_portrait(user.id, raw_text, lang))
 
     if tag_count == _GOAL_SUGGESTION_THRESHOLD:
         recent_wins = await session.scalars(
