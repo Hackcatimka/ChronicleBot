@@ -1,138 +1,82 @@
 # Chronicle Bot
 
-Telegram bot that saves your moments, tracks your goals, and reflects your progress back to you with AI.
+A Telegram bot for saving meaningful moments, tracking personal goals and reviewing progress with AI-assisted reflections.
 
----
+I built Chronicle Bot as a complete Telegram product rather than a collection of separate commands: it includes onboarding, persistent data, scheduled reminders, analytics and an administration area.
 
 ## Features
 
-- **Moment recording** — just write what went well, AI reacts to the specific thing you did; the AI response stays in chat history as a permanent message
-- **Goals** — create goals, link moments to them, edit title/deadline/category, get AI progress analysis
-- **Goal suggestion** — after 5 moments in the same category, AI suggests a matching goal automatically
-- **Reflect** — AI analysis of your last 30 days: patterns, strengths, what's next
-- **Time Machine** — revisit random past moments with AI reflection; edit or delete moments in place
-- **Search** — full-text search across all moments; "All moments" chronological view; edit or delete any moment directly from results
-- **Stats** — this week, this month, all time, period comparison; week and month views include an AI narrative review
-- **Skill map** — visual `█░` progress bars per life area tag, shown inside stats
-- **Streak tracking** — all-time view shows your current daily streak
-- **Reminders** — morning check-in, evening check-in, weekly digest with AI narrative
-- **Tones** — Friend, Coach, or Mirror — changes how the AI talks to you
-- **Stickers** — optional Catification mode: random sticker appears above each AI response
-- **Languages** — English and Russian
-- **Admin panel** — `/admin` with period stats; drill-down into moment analytics (trend, tags, engagement, time of day) and user analytics (registration trend, D1/D7/D30 retention, churn, tone split); one-tap nudge to all users silent for 24 h+
+- save moments and organize them by life-area tags;
+- create goals and connect recorded moments to them;
+- search, edit and delete previous entries;
+- view weekly, monthly and all-time statistics;
+- receive AI-assisted progress summaries and 30-day reflections;
+- revisit older entries through a “Time Machine” flow;
+- configure reminders, language and conversation tone;
+- use the bot in English or Russian;
+- review usage and retention information in a restricted admin area.
 
----
-
-## Stack
+## Tech stack
 
 - Python 3.12
-- [aiogram 3.x](https://docs.aiogram.dev/) — Telegram bot framework
-- [SQLAlchemy 2.0](https://docs.sqlalchemy.org/) + asyncpg — async ORM
-- PostgreSQL — database
-- [Alembic](https://alembic.sqlalchemy.org/) — database migrations
-- [APScheduler](https://apscheduler.readthedocs.io/) — reminders
-- [Groq API](https://console.groq.com/) (llama-3.3-70b-versatile) — AI responses
-
----
+- aiogram 3
+- SQLAlchemy with asyncpg
+- PostgreSQL
+- Alembic
+- APScheduler
+- Groq API through an OpenAI-compatible client
+- Sentry integration
 
 ## Project structure
 
-```
-chronicle/
-├── main.py               # Entry point, middleware, error handler, health server
-├── config.py             # Settings from environment variables
-├── ai.py                 # Groq API calls
-├── scheduler.py          # APScheduler — reminders and weekly digests
-├── keyboards.py          # Inline keyboard builders
-├── locales.py            # All user-facing strings (en + ru)
-├── ratelimit.py          # In-memory rate limiter
-├── utils.py              # edit_or_answer / edit_stored helpers (one-message UI)
-├── dateparse.py          # Date extraction from free-form text (DD.MM.YYYY, Russian/English month names)
-├── stickers.py           # Sticker set loader and sender
-├── db/
-│   ├── models.py         # SQLAlchemy models
-│   └── engine.py         # Async engine and session
-├── handlers/
-│   ├── start.py          # /start, onboarding (language → tone → timezone)
-│   ├── wins.py           # Recording moments, linking to goals, goal suggestion flow
-│   ├── goals.py          # Goals — create, edit, view, complete, abandon; AI suggestion
-│   ├── search.py         # Moment search, "All moments" view, in-place edit/delete
-│   ├── stats.py          # Stats, period comparison, per-period AI review, skill map
-│   ├── reflect.py        # 30-day AI reflection
-│   ├── then.py           # Time machine — view, edit, delete past moments
-│   ├── reminders.py      # Reminders and settings
-│   └── admin.py          # Admin panel (/admin, restricted by tg_id)
-├── alembic/              # Database migrations
-└── requirements.txt
+```text
+handlers/   Telegram commands and user flows
+db/         database models and async session setup
+alembic/    database migrations
+tests/      automated tests
+ai.py       AI provider integration
+scheduler.py reminders and weekly digests
+main.py     application entry point
 ```
 
----
-
-## Local setup
-
-**1. Clone and install**
+## Run locally
 
 ```bash
 git clone https://github.com/Hackcatimka/ChronicleBot.git
 cd ChronicleBot
+python -m venv .venv
 pip install -r requirements.txt
+cp .env.example .env
 ```
 
-**2. Create `.env`**
+Configure the local environment:
 
 ```env
 BOT_TOKEN=your_telegram_bot_token
 DATABASE_URL=postgresql+asyncpg://user:password@localhost:5432/chronicle
 GROQ_API_KEY=your_groq_api_key
-SENTRY_DSN=           # optional
-STICKER_SET_NAME=     # optional, defaults to catsunicmass
 ```
 
-**3. Run migrations and start**
+Start the bot:
 
 ```bash
 python main.py
 ```
 
-Migrations run automatically on startup.
+Database migrations run automatically during startup.
 
----
+## Tests
 
-## Deploy on Railway
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
 
-1. Push to GitHub
-2. Railway → New Project → Deploy from GitHub
-3. Add PostgreSQL plugin
-4. Set environment variables: `BOT_TOKEN`, `GROQ_API_KEY`
-5. Railway redeploys automatically on every push
+## Status
 
----
+Active portfolio project. Planned improvements include broader integration testing, a clearer deployment guide and a short product demonstration.
 
-## Database schema
+## Privacy
 
-| Table | Purpose |
-|---|---|
-| `users` | Telegram user, tone, language, UTC offset, stickers toggle |
-| `wins` | Recorded moments with AI-classified tag |
-| `goals` | User goals with deadline, category, status |
-| `win_goals` | Many-to-many: moments linked to goals |
-| `reminders` | Scheduled reminders per user |
+The bot stores user-generated journal entries. A real deployment should use a protected database, restricted logs, documented retention rules and a clear privacy notice.
 
----
-
-## Environment variables
-
-| Variable | Description |
-|---|---|
-| `BOT_TOKEN` | Telegram bot token from BotFather |
-| `DATABASE_URL` | PostgreSQL connection string |
-| `GROQ_API_KEY` | Groq API key (free at console.groq.com) |
-| `SENTRY_DSN` | Optional — Sentry error tracking |
-| `ENV` | Optional — environment label for Sentry (default: `production`) |
-| `STICKER_SET_NAME` | Optional — Telegram sticker set name (default: `catsunicmass`) |
-
----
-
-## License
-
-MIT
