@@ -4,6 +4,22 @@ A Telegram bot for saving meaningful moments, tracking personal goals and review
 
 I built Chronicle Bot as a complete Telegram product rather than a collection of separate commands: it includes onboarding, persistent data, scheduled reminders, analytics and an administration area.
 
+## Web experience
+
+The repository also includes an interactive React product page that presents the Chronicle concept and demonstrates how moments, goals and AI reflections can work together.
+
+### Landing page
+
+![Chronicle landing page with product preview](docs/screenshots/chronicle-landing.png)
+
+### Core features
+
+![Chronicle moments, goals and AI reflection features](docs/screenshots/chronicle-features.png)
+
+### Interactive journal preview
+
+![Chronicle interactive journal timeline](docs/screenshots/chronicle-journal.png)
+
 ## Features
 
 - save moments and organize them by life-area tags;
