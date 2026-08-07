@@ -51,10 +51,17 @@ async function ensureGoalColumns(db: D1Database) {
     ["deadline", "ALTER TABLE goals ADD COLUMN deadline TEXT"],
     ["status", "ALTER TABLE goals ADD COLUMN status TEXT NOT NULL DEFAULT 'active'"],
     ["completed_at", "ALTER TABLE goals ADD COLUMN completed_at TEXT"],
+    ["profile_id", "ALTER TABLE goals ADD COLUMN profile_id TEXT NOT NULL DEFAULT 'legacy'"],
   ] as const;
   for (const [name, statement] of additions) {
     if (!names.has(name)) await db.prepare(statement).run();
   }
+}
+
+async function ensureMomentColumns(db: D1Database) {
+  const columns = await db.prepare("PRAGMA table_info(moments)").all<{ name: string }>();
+  const names = new Set(columns.results.map((column) => column.name));
+  if (!names.has("profile_id")) await db.prepare("ALTER TABLE moments ADD COLUMN profile_id TEXT NOT NULL DEFAULT 'legacy'").run();
 }
 
 async function ensureSettingsColumns(db: D1Database) {
@@ -67,6 +74,18 @@ async function ensureSettingsColumns(db: D1Database) {
 async function ensureSchema() {
   const db = getDatabase();
   await db.batch([
+    db.prepare(`CREATE TABLE IF NOT EXISTS chronicle_profiles (
+      id TEXT PRIMARY KEY,
+      display_name TEXT NOT NULL DEFAULT 'Alex',
+      language TEXT NOT NULL DEFAULT 'en',
+      tone TEXT NOT NULL DEFAULT 'thoughtful',
+      timezone TEXT NOT NULL DEFAULT 'Europe/Moscow',
+      reminders_enabled INTEGER NOT NULL DEFAULT 0,
+      reminder_time TEXT NOT NULL DEFAULT '20:00',
+      reminder_frequency TEXT NOT NULL DEFAULT 'daily',
+      onboarding_complete INTEGER NOT NULL DEFAULT 0,
+      selected_areas TEXT NOT NULL DEFAULT '["Growth","Work","Relationships","Health","Creativity","Rest"]'
+    )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS moments (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       title TEXT NOT NULL,
@@ -74,7 +93,8 @@ async function ensureSchema() {
       category TEXT NOT NULL DEFAULT 'Growth',
       mood TEXT NOT NULL DEFAULT 'Proud',
       is_favorite INTEGER NOT NULL DEFAULT 0,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      profile_id TEXT NOT NULL DEFAULT 'legacy'
     )`),
     db.prepare(`CREATE TABLE IF NOT EXISTS goals (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,9 +106,11 @@ async function ensureSchema() {
       deadline TEXT,
       status TEXT NOT NULL DEFAULT 'active',
       completed_at TEXT,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      profile_id TEXT NOT NULL DEFAULT 'legacy'
     )`),
   ]);
+  await ensureMomentColumns(db);
   await ensureGoalColumns(db);
   await db.batch([
     db.prepare(`CREATE TABLE IF NOT EXISTS moment_goals (
@@ -109,16 +131,37 @@ async function ensureSchema() {
     )`),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_moments_created_at ON moments(created_at DESC)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_moments_category_created_at ON moments(category, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_moments_profile_created_at ON moments(profile_id, created_at DESC)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS idx_goals_profile_status ON goals(profile_id, status)"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_moment_goals_pair ON moment_goals(moment_id, goal_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS idx_moment_goals_goal_id ON moment_goals(goal_id)"),
     db.prepare("INSERT OR IGNORE INTO chronicle_settings (id) VALUES (1)"),
   ]);
   await ensureSettingsColumns(db);
+  await db.prepare(`INSERT OR IGNORE INTO chronicle_profiles
+    (id, display_name, language, tone, timezone, reminders_enabled, reminder_time, reminder_frequency, onboarding_complete, selected_areas)
+    SELECT 'legacy', display_name, language, tone, timezone, reminders_enabled, reminder_time, reminder_frequency,
+      onboarding_complete, selected_areas FROM chronicle_settings WHERE id = 1`).run();
   await db.prepare(`UPDATE chronicle_settings SET onboarding_complete = 1
     WHERE id = 1 AND onboarding_complete = 0
     AND (EXISTS (SELECT 1 FROM moments LIMIT 1) OR EXISTS (SELECT 1 FROM goals LIMIT 1))`).run();
   await db.prepare("PRAGMA optimize").run();
   return db;
+}
+
+function profileFromRequest(request: Request) {
+  const cookie = request.headers.get("cookie") || "";
+  const match = cookie.match(/(?:^|;\s*)chronicle_profile=([a-zA-Z0-9-]+)/);
+  return match?.[1] || crypto.randomUUID();
+}
+
+function profileCookie(profileId: string, request: Request) {
+  const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
+  return `chronicle_profile=${profileId}; Path=/; Max-Age=31536000; HttpOnly; SameSite=Lax${secure}`;
+}
+
+async function ensureProfile(db: D1Database, profileId: string) {
+  await db.prepare("INSERT OR IGNORE INTO chronicle_profiles (id) VALUES (?)").bind(profileId).run();
 }
 
 function text(value: unknown, fallback = "") {
@@ -142,31 +185,34 @@ function selectedAreas(value: unknown) {
   return result.length ? result : supported;
 }
 
-async function replaceMomentGoals(db: D1Database, momentId: number, goalIds: number[] = []) {
+async function replaceMomentGoals(db: D1Database, profileId: string, momentId: number, goalIds: number[] = []) {
   await db.prepare("DELETE FROM moment_goals WHERE moment_id = ?").bind(momentId).run();
   const uniqueIds = [...new Set(goalIds.map((id) => integer(id, 0, 1)).filter(Boolean))];
   if (uniqueIds.length) {
     await db.batch(uniqueIds.map((goalId) => db.prepare(
-      "INSERT OR IGNORE INTO moment_goals (moment_id, goal_id) VALUES (?, ?)",
-    ).bind(momentId, goalId)));
+      `INSERT OR IGNORE INTO moment_goals (moment_id, goal_id)
+       SELECT ?, id FROM goals WHERE id = ? AND profile_id = ?`,
+    ).bind(momentId, goalId, profileId)));
   }
 }
 
-async function readChronicle() {
+async function readChronicle(profileId: string) {
   const db = await ensureSchema();
+  await ensureProfile(db, profileId);
   const [moments, goals, links, settings] = await Promise.all([
     db.prepare(`SELECT id, title, content, category, mood,
       is_favorite AS isFavorite, created_at AS createdAt
-      FROM moments ORDER BY created_at DESC, id DESC`).all(),
+      FROM moments WHERE profile_id = ? ORDER BY created_at DESC, id DESC`).bind(profileId).all(),
     db.prepare(`SELECT id, title, description, target_steps AS targetSteps,
       completed_steps AS completedSteps, category, deadline, status,
       completed_at AS completedAt, created_at AS createdAt
-      FROM goals ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'completed' THEN 1 ELSE 2 END, created_at DESC, id DESC`).all(),
-    db.prepare("SELECT moment_id AS momentId, goal_id AS goalId FROM moment_goals").all(),
+      FROM goals WHERE profile_id = ? ORDER BY CASE status WHEN 'active' THEN 0 WHEN 'completed' THEN 1 ELSE 2 END, created_at DESC, id DESC`).bind(profileId).all(),
+    db.prepare(`SELECT mg.moment_id AS momentId, mg.goal_id AS goalId FROM moment_goals mg
+      INNER JOIN moments m ON m.id = mg.moment_id WHERE m.profile_id = ?`).bind(profileId).all(),
     db.prepare(`SELECT display_name AS displayName, language, tone, timezone,
       reminders_enabled AS remindersEnabled, reminder_time AS reminderTime,
       reminder_frequency AS reminderFrequency, onboarding_complete AS onboardingComplete,
-      selected_areas AS selectedAreas FROM chronicle_settings WHERE id = 1`).first(),
+      selected_areas AS selectedAreas FROM chronicle_profiles WHERE id = ?`).bind(profileId).first(),
   ]);
   const goalsByMoment = new Map<number, number[]>();
   for (const link of links.results) {
@@ -197,9 +243,10 @@ async function readChronicle() {
   };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    return Response.json(await readChronicle());
+    const profileId = profileFromRequest(request);
+    return Response.json(await readChronicle(profileId), { headers: { "Set-Cookie": profileCookie(profileId, request) } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to load Chronicle." }, { status: 500 });
   }
@@ -209,6 +256,8 @@ export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as Payload;
     const db = await ensureSchema();
+    const profileId = profileFromRequest(request);
+    await ensureProfile(db, profileId);
     const now = new Date().toISOString();
 
     switch (payload.action) {
@@ -217,9 +266,9 @@ export async function POST(request: Request) {
         const content = text(payload.content);
         if (!title || !content) return Response.json({ error: "Title and details are required." }, { status: 400 });
         const result = await db.prepare(`INSERT INTO moments
-          (title, content, category, mood, is_favorite, created_at) VALUES (?, ?, ?, ?, 0, ?)`) 
-          .bind(title, content, text(payload.category, "Growth"), text(payload.mood, "Proud"), now).run();
-        await replaceMomentGoals(db, Number(result.meta.last_row_id), payload.goalIds);
+          (title, content, category, mood, is_favorite, created_at, profile_id) VALUES (?, ?, ?, ?, 0, ?, ?)`)
+          .bind(title, content, text(payload.category, "Growth"), text(payload.mood, "Proud"), now, profileId).run();
+        await replaceMomentGoals(db, profileId, Number(result.meta.last_row_id), payload.goalIds);
         break;
       }
       case "updateMoment": {
@@ -227,25 +276,25 @@ export async function POST(request: Request) {
         const title = text(payload.title);
         const content = text(payload.content);
         if (!id || !title || !content) return Response.json({ error: "A valid moment is required." }, { status: 400 });
-        await db.prepare("UPDATE moments SET title = ?, content = ?, category = ?, mood = ? WHERE id = ?")
-          .bind(title, content, text(payload.category, "Growth"), text(payload.mood, "Proud"), id).run();
-        await replaceMomentGoals(db, id, payload.goalIds);
+        await db.prepare("UPDATE moments SET title = ?, content = ?, category = ?, mood = ? WHERE id = ? AND profile_id = ?")
+          .bind(title, content, text(payload.category, "Growth"), text(payload.mood, "Proud"), id, profileId).run();
+        await replaceMomentGoals(db, profileId, id, payload.goalIds);
         break;
       }
       case "deleteMoment":
-        await db.prepare("DELETE FROM moments WHERE id = ?").bind(integer(payload.id, 0, 1)).run();
+        await db.prepare("DELETE FROM moments WHERE id = ? AND profile_id = ?").bind(integer(payload.id, 0, 1), profileId).run();
         break;
       case "toggleFavorite":
-        await db.prepare("UPDATE moments SET is_favorite = ? WHERE id = ?")
-          .bind(payload.favorite ? 1 : 0, integer(payload.id, 0, 1)).run();
+        await db.prepare("UPDATE moments SET is_favorite = ? WHERE id = ? AND profile_id = ?")
+          .bind(payload.favorite ? 1 : 0, integer(payload.id, 0, 1), profileId).run();
         break;
       case "createGoal": {
         const title = text(payload.title);
         if (!title) return Response.json({ error: "Goal title is required." }, { status: 400 });
         await db.prepare(`INSERT INTO goals
-          (title, description, target_steps, completed_steps, category, deadline, status, completed_at, created_at)
-          VALUES (?, ?, ?, 0, ?, ?, 'active', NULL, ?)`) 
-          .bind(title, text(payload.description), integer(payload.targetSteps, 10, 1), text(payload.category, "Growth"), text(payload.deadline) || null, now).run();
+          (title, description, target_steps, completed_steps, category, deadline, status, completed_at, created_at, profile_id)
+          VALUES (?, ?, ?, 0, ?, ?, 'active', NULL, ?, ?)`)
+          .bind(title, text(payload.description), integer(payload.targetSteps, 10, 1), text(payload.category, "Growth"), text(payload.deadline) || null, now, profileId).run();
         break;
       }
       case "updateGoal": {
@@ -254,22 +303,22 @@ export async function POST(request: Request) {
         const completed = Math.min(integer(payload.completedSteps, 0), target);
         const status = allowed(payload.status, ["active", "completed", "abandoned"], "active");
         await db.prepare(`UPDATE goals SET title = ?, description = ?, target_steps = ?, completed_steps = ?,
-          category = ?, deadline = ?, status = ?, completed_at = ? WHERE id = ?`)
+          category = ?, deadline = ?, status = ?, completed_at = ? WHERE id = ? AND profile_id = ?`)
           .bind(text(payload.title, "Untitled goal"), text(payload.description), target, completed,
             text(payload.category, "Growth"), text(payload.deadline) || null, status,
-            status === "completed" ? now : null, id).run();
+            status === "completed" ? now : null, id, profileId).run();
         break;
       }
       case "deleteGoal":
-        await db.prepare("DELETE FROM goals WHERE id = ?").bind(integer(payload.id, 0, 1)).run();
+        await db.prepare("DELETE FROM goals WHERE id = ? AND profile_id = ?").bind(integer(payload.id, 0, 1), profileId).run();
         break;
       case "updateSettings":
-        await db.prepare(`UPDATE chronicle_settings SET display_name = ?, language = ?, tone = ?, timezone = ?,
-          reminders_enabled = ?, reminder_time = ?, reminder_frequency = ? WHERE id = 1`)
+        await db.prepare(`UPDATE chronicle_profiles SET display_name = ?, language = ?, tone = ?, timezone = ?,
+          reminders_enabled = ?, reminder_time = ?, reminder_frequency = ? WHERE id = ?`)
           .bind(text(payload.displayName, "Alex"), allowed(payload.language, ["en", "ru"], "en"),
             allowed(payload.tone, ["gentle", "thoughtful", "direct"], "thoughtful"), text(payload.timezone, "Europe/Moscow"),
             payload.remindersEnabled ? 1 : 0, text(payload.reminderTime, "20:00"),
-            allowed(payload.reminderFrequency, ["daily", "weekdays", "weekly"], "daily")).run();
+            allowed(payload.reminderFrequency, ["daily", "weekdays", "weekly"], "daily"), profileId).run();
         break;
       case "completeOnboarding": {
         const displayName = text(payload.displayName);
@@ -281,16 +330,16 @@ export async function POST(request: Request) {
           return Response.json({ error: "Complete every onboarding step and choose at least three life areas." }, { status: 400 });
         }
         const language = allowed(payload.language, ["en", "ru"], "en");
-        await db.prepare(`UPDATE chronicle_settings SET display_name = ?, language = ?, selected_areas = ?, onboarding_complete = 1 WHERE id = 1`)
-          .bind(displayName, language, JSON.stringify(areas)).run();
+        await db.prepare(`UPDATE chronicle_profiles SET display_name = ?, language = ?, selected_areas = ?, onboarding_complete = 1 WHERE id = ?`)
+          .bind(displayName, language, JSON.stringify(areas), profileId).run();
         const goalResult = await db.prepare(`INSERT INTO goals
-          (title, description, target_steps, completed_steps, category, deadline, status, completed_at, created_at)
-          VALUES (?, '', ?, 0, ?, NULL, 'active', NULL, ?)`)
-          .bind(goalTitle, integer(payload.goalSteps, 10, 1), allowed(payload.goalCategory, areas, areas[0]), now).run();
+          (title, description, target_steps, completed_steps, category, deadline, status, completed_at, created_at, profile_id)
+          VALUES (?, '', ?, 0, ?, NULL, 'active', NULL, ?, ?)`)
+          .bind(goalTitle, integer(payload.goalSteps, 10, 1), allowed(payload.goalCategory, areas, areas[0]), now, profileId).run();
         const momentResult = await db.prepare(`INSERT INTO moments
-          (title, content, category, mood, is_favorite, created_at) VALUES (?, ?, ?, ?, 0, ?)`)
+          (title, content, category, mood, is_favorite, created_at, profile_id) VALUES (?, ?, ?, ?, 0, ?, ?)`)
           .bind(momentTitle, momentContent, allowed(payload.momentCategory, areas, areas[0]),
-            allowed(payload.momentMood, ["Proud", "Grateful", "Calm", "Excited", "Brave", "Thoughtful"], "Proud"), now).run();
+            allowed(payload.momentMood, ["Proud", "Grateful", "Calm", "Excited", "Brave", "Thoughtful"], "Proud"), now, profileId).run();
         const goalId = Number(goalResult.meta.last_row_id);
         const momentId = Number(momentResult.meta.last_row_id);
         if (goalId && momentId) await db.prepare("INSERT OR IGNORE INTO moment_goals (moment_id, goal_id) VALUES (?, ?)").bind(momentId, goalId).run();
@@ -298,32 +347,35 @@ export async function POST(request: Request) {
       }
       case "deleteAll":
         await db.batch([
-          db.prepare("DELETE FROM moment_goals"), db.prepare("DELETE FROM moments"), db.prepare("DELETE FROM goals"),
+          db.prepare("DELETE FROM moment_goals WHERE moment_id IN (SELECT id FROM moments WHERE profile_id = ?)").bind(profileId),
+          db.prepare("DELETE FROM moments WHERE profile_id = ?").bind(profileId),
+          db.prepare("DELETE FROM goals WHERE profile_id = ?").bind(profileId),
         ]);
         break;
       case "deleteAccount":
         await db.batch([
-          db.prepare("DELETE FROM moment_goals"), db.prepare("DELETE FROM moments"), db.prepare("DELETE FROM goals"),
-          db.prepare(`UPDATE chronicle_settings SET display_name = 'Alex', language = 'en', tone = 'thoughtful',
-            timezone = 'Europe/Moscow', reminders_enabled = 0, reminder_time = '20:00', reminder_frequency = 'daily',
-            onboarding_complete = 0, selected_areas = '["Growth","Work","Relationships","Health","Creativity","Rest"]' WHERE id = 1`),
+          db.prepare("DELETE FROM moment_goals WHERE moment_id IN (SELECT id FROM moments WHERE profile_id = ?)").bind(profileId),
+          db.prepare("DELETE FROM moments WHERE profile_id = ?").bind(profileId),
+          db.prepare("DELETE FROM goals WHERE profile_id = ?").bind(profileId),
+          db.prepare("DELETE FROM chronicle_profiles WHERE id = ?").bind(profileId),
         ]);
+        await ensureProfile(db, profileId);
         break;
       case "seedDemo": {
-        const count = await db.prepare("SELECT COUNT(*) AS total FROM moments").first<{ total: number }>();
+        const count = await db.prepare("SELECT COUNT(*) AS total FROM moments WHERE profile_id = ?").bind(profileId).first<{ total: number }>();
         if (!count?.total) {
           const yesterday = new Date(Date.now() - 86_400_000).toISOString();
           const lastWeek = new Date(Date.now() - 5 * 86_400_000).toISOString();
           const lastMonth = new Date(Date.now() - 32 * 86_400_000).toISOString();
           const results = await db.batch([
-            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind("Finished the first version of my project", "I chose forward motion over a perfect result. And it worked.", "Growth", "Proud", 1, now),
-            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind("A warm evening with the people I love", "We left our phones in another room, talked for hours, and laughed a lot.", "Relationships", "Grateful", 0, yesterday),
-            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind("Shared my work before it felt perfect", "Honest feedback showed me exactly what to improve next.", "Work", "Brave", 0, lastWeek),
-            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at) VALUES (?, ?, ?, ?, ?, ?)`).bind("Took a quiet morning for myself", "A slow walk helped me hear what I actually needed.", "Health", "Calm", 0, lastMonth),
+            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind("Finished the first version of my project", "I chose forward motion over a perfect result. And it worked.", "Growth", "Proud", 1, now, profileId),
+            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind("A warm evening with the people I love", "We left our phones in another room, talked for hours, and laughed a lot.", "Relationships", "Grateful", 0, yesterday, profileId),
+            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind("Shared my work before it felt perfect", "Honest feedback showed me exactly what to improve next.", "Work", "Brave", 0, lastWeek, profileId),
+            db.prepare(`INSERT INTO moments (title, content, category, mood, is_favorite, created_at, profile_id) VALUES (?, ?, ?, ?, ?, ?, ?)`).bind("Took a quiet morning for myself", "A slow walk helped me hear what I actually needed.", "Health", "Calm", 0, lastMonth, profileId),
           ]);
           const goalResult = await db.prepare(`INSERT INTO goals
-            (title, description, target_steps, completed_steps, category, deadline, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, 'active', ?)`).bind("Launch my own product", "Turn Chronicle into something people can use every day.", 25, 17, "Work", new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10), now).run();
+            (title, description, target_steps, completed_steps, category, deadline, status, created_at, profile_id)
+            VALUES (?, ?, ?, ?, ?, ?, 'active', ?, ?)`).bind("Launch my own product", "Turn Chronicle into something people can use every day.", 25, 17, "Work", new Date(Date.now() + 30 * 86_400_000).toISOString().slice(0, 10), now, profileId).run();
           const goalId = Number(goalResult.meta.last_row_id);
           const linkedMomentId = Number(results[0].meta.last_row_id);
           if (goalId && linkedMomentId) await db.prepare("INSERT OR IGNORE INTO moment_goals (moment_id, goal_id) VALUES (?, ?)").bind(linkedMomentId, goalId).run();
@@ -333,7 +385,7 @@ export async function POST(request: Request) {
       default:
         return Response.json({ error: "Unsupported action." }, { status: 400 });
     }
-    return Response.json(await readChronicle());
+    return Response.json(await readChronicle(profileId), { headers: { "Set-Cookie": profileCookie(profileId, request) } });
   } catch (error) {
     return Response.json({ error: error instanceof Error ? error.message : "Unable to update Chronicle." }, { status: 500 });
   }

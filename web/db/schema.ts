@@ -8,6 +8,7 @@ export const moments = sqliteTable("moments", {
   mood: text("mood").notNull().default("Proud"),
   isFavorite: integer("is_favorite", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull(),
+  profileId: text("profile_id").notNull().default("legacy"),
 });
 
 export const goals = sqliteTable("goals", {
@@ -21,6 +22,7 @@ export const goals = sqliteTable("goals", {
   status: text("status").notNull().default("active"),
   completedAt: text("completed_at"),
   createdAt: text("created_at").notNull(),
+  profileId: text("profile_id").notNull().default("legacy"),
 });
 
 export const momentGoals = sqliteTable("moment_goals", {
@@ -30,6 +32,19 @@ export const momentGoals = sqliteTable("moment_goals", {
 
 export const chronicleSettings = sqliteTable("chronicle_settings", {
   id: integer("id").primaryKey(),
+  displayName: text("display_name").notNull().default("Alex"),
+  language: text("language").notNull().default("en"),
+  tone: text("tone").notNull().default("thoughtful"),
+  timezone: text("timezone").notNull().default("Europe/Moscow"),
+  remindersEnabled: integer("reminders_enabled", { mode: "boolean" }).notNull().default(false),
+  reminderTime: text("reminder_time").notNull().default("20:00"),
+  reminderFrequency: text("reminder_frequency").notNull().default("daily"),
+  onboardingComplete: integer("onboarding_complete", { mode: "boolean" }).notNull().default(false),
+  selectedAreas: text("selected_areas").notNull().default('["Growth","Work","Relationships","Health","Creativity","Rest"]'),
+});
+
+export const chronicleProfiles = sqliteTable("chronicle_profiles", {
+  id: text("id").primaryKey(),
   displayName: text("display_name").notNull().default("Alex"),
   language: text("language").notNull().default("en"),
   tone: text("tone").notNull().default("thoughtful"),
