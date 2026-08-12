@@ -91,9 +91,7 @@ export default function Home() {
           <a href="#demo">Live demo</a>
           <a href="#reflection">AI reflections</a>
         </nav>
-        <button className="nav-action" onClick={() => setComposerOpen(true)}>
-          Capture a moment
-        </button>
+        <a className="nav-action" href="/app">Open Chronicle</a>
       </header>
 
       <section className="hero" id="top">
@@ -110,16 +108,16 @@ export default function Home() {
             and see your progress through thoughtful AI reflections.
           </p>
           <div className="hero-actions">
-            <button className="primary-action" onClick={() => setComposerOpen(true)}>
+            <a className="primary-action" href="/app">
               Start your Chronicle <span>→</span>
-            </button>
+            </a>
             <button className="secondary-action" onClick={scrollToDemo}>
               Explore the demo
             </button>
           </div>
           <div className="hero-proof">
             <div className="proof-avatars"><span>A</span><span>M</span><span>K</span></div>
-            <p><strong>2,400+</strong> moments already captured</p>
+            <p><strong>Private by design</strong> · your story stays yours</p>
           </div>
         </div>
 
@@ -264,7 +262,7 @@ export default function Home() {
         <span className="closing-star">✦</span>
         <h2>Your story is already unfolding.</h2>
         <p>Start noticing it today.</p>
-        <button className="primary-action" onClick={() => setComposerOpen(true)}>Capture your first moment <span>→</span></button>
+        <a className="primary-action" href="/app">Open Chronicle <span>→</span></a>
       </section>
 
       <footer>
