@@ -117,7 +117,7 @@ export default function Home() {
           </div>
           <div className="hero-proof">
             <div className="proof-avatars"><span>A</span><span>M</span><span>K</span></div>
-            <p><strong>2,400+</strong> moments already captured</p>
+            <p><strong>Private by design</strong> · your story stays yours</p>
           </div>
         </div>
 

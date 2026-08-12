@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { AuthenticationRequiredError, resolveProfileId } from "@/lib/supabase-server";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,16 @@ async function ensureSettingsColumns(db: D1Database) {
   if (!names.has("selected_areas")) await db.prepare(`ALTER TABLE chronicle_settings ADD COLUMN selected_areas TEXT NOT NULL DEFAULT '["Growth","Work","Relationships","Health","Creativity","Rest"]'`).run();
 }
 
+async function ensureProfileColumns(db: D1Database) {
+  const columns = await db.prepare("PRAGMA table_info(chronicle_profiles)").all<{ name: string }>();
+  const names = new Set(columns.results.map((column) => column.name));
+  if (!names.has("created_at")) await db.prepare("ALTER TABLE chronicle_profiles ADD COLUMN created_at TEXT NOT NULL DEFAULT ''").run();
+  if (!names.has("last_active_at")) await db.prepare("ALTER TABLE chronicle_profiles ADD COLUMN last_active_at TEXT NOT NULL DEFAULT ''").run();
+  const now = new Date().toISOString();
+  await db.prepare("UPDATE chronicle_profiles SET created_at = ? WHERE created_at = ''").bind(now).run();
+  await db.prepare("UPDATE chronicle_profiles SET last_active_at = created_at WHERE last_active_at = ''").run();
+}
+
 async function ensureSchema() {
   const db = getDatabase();
   await db.batch([
@@ -138,6 +149,7 @@ async function ensureSchema() {
     db.prepare("INSERT OR IGNORE INTO chronicle_settings (id) VALUES (1)"),
   ]);
   await ensureSettingsColumns(db);
+  await ensureProfileColumns(db);
   await db.prepare(`INSERT OR IGNORE INTO chronicle_profiles
     (id, display_name, language, tone, timezone, reminders_enabled, reminder_time, reminder_frequency, onboarding_complete, selected_areas)
     SELECT 'legacy', display_name, language, tone, timezone, reminders_enabled, reminder_time, reminder_frequency,
@@ -149,7 +161,7 @@ async function ensureSchema() {
   return db;
 }
 
-function profileFromRequest(request: Request) {
+function fallbackProfileFromRequest(request: Request) {
   const cookie = request.headers.get("cookie") || "";
   const match = cookie.match(/(?:^|;\s*)chronicle_profile=([a-zA-Z0-9-]+)/);
   return match?.[1] || crypto.randomUUID();
@@ -161,7 +173,9 @@ function profileCookie(profileId: string, request: Request) {
 }
 
 async function ensureProfile(db: D1Database, profileId: string) {
-  await db.prepare("INSERT OR IGNORE INTO chronicle_profiles (id) VALUES (?)").bind(profileId).run();
+  const now = new Date().toISOString();
+  await db.prepare("INSERT OR IGNORE INTO chronicle_profiles (id, created_at, last_active_at) VALUES (?, ?, ?)").bind(profileId, now, now).run();
+  await db.prepare("UPDATE chronicle_profiles SET last_active_at = ? WHERE id = ?").bind(now, profileId).run();
 }
 
 function text(value: unknown, fallback = "") {
@@ -245,9 +259,10 @@ async function readChronicle(profileId: string) {
 
 export async function GET(request: Request) {
   try {
-    const profileId = profileFromRequest(request);
+    const profileId = await resolveProfileId(request, () => fallbackProfileFromRequest(request));
     return Response.json(await readChronicle(profileId), { headers: { "Set-Cookie": profileCookie(profileId, request) } });
   } catch (error) {
+    if (error instanceof AuthenticationRequiredError) return Response.json({ error: "Authentication required." }, { status: 401 });
     return Response.json({ error: error instanceof Error ? error.message : "Unable to load Chronicle." }, { status: 500 });
   }
 }
@@ -256,7 +271,7 @@ export async function POST(request: Request) {
   try {
     const payload = (await request.json()) as Payload;
     const db = await ensureSchema();
-    const profileId = profileFromRequest(request);
+    const profileId = await resolveProfileId(request, () => fallbackProfileFromRequest(request));
     await ensureProfile(db, profileId);
     const now = new Date().toISOString();
 
@@ -387,6 +402,7 @@ export async function POST(request: Request) {
     }
     return Response.json(await readChronicle(profileId), { headers: { "Set-Cookie": profileCookie(profileId, request) } });
   } catch (error) {
+    if (error instanceof AuthenticationRequiredError) return Response.json({ error: "Authentication required." }, { status: 401 });
     return Response.json({ error: error instanceof Error ? error.message : "Unable to update Chronicle." }, { status: 500 });
   }
 }
