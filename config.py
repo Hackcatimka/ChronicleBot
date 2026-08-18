@@ -19,8 +19,15 @@ class Settings(BaseSettings):
     @field_validator("DATABASE_URL", mode="before")
     @classmethod
     def fix_db_url(cls, v: str) -> str:
-        # Railway даёт postgresql://, asyncpg требует postgresql+asyncpg://
-        return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        # Already has the correct asyncpg driver prefix — use as-is
+        if v.startswith("postgresql+asyncpg://"):
+            return v
+        # Railway can provide either postgres:// or postgresql:// — normalise both
+        if v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+asyncpg://", 1)
+        if v.startswith("postgres://"):
+            return v.replace("postgres://", "postgresql+asyncpg://", 1)
+        return v
 
 
 settings = Settings()
